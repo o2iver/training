@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version a16a01f497
+/*! O.G. Trainings-App · Grundgerüst · Version eec7b6b016
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -65,6 +65,96 @@ var MELDUNG = {
   schluessel: ['Link passt nicht', 'Der Link passt nicht zu diesem Plan. Bitte den Link aus der Nachricht vollständig öffnen.']
 };
 
+// ===================== Rückmeldung: Einträge automatisch an Olli =====================
+// Fertige Einheiten werden auf dem Gerät verschlüsselt (Einmal-Schlüssel ECDH P-256 + AES-GCM wie bei
+// den Fragebögen, aber mit eigenem Schlüsselpaar) und über EmailJS ins Leistungssport-Postfach
+// geschickt. EmailJS und Postfach sehen nur Zeichensalat; lesen kann es nur Ollis Übersicht am PC.
+// Die Einträge bleiben zusätzlich auf dem Gerät.
+var RM = {"schluessel":{"kty":"EC","crv":"P-256","x":"6mOTJ7vBuEgtp526G71SoXOjfy4qloVX3_zDNtJYKt0","y":"XbhgbaEzHLfsoZVvbKcS5RM6GAWSnu7Y6Pp_2sg2W4k"},"adresse":"https://api.emailjs.com/api/v1.0/email/send","service":"service_cx4ksx5","template":"template_xn5hexf","user":"u2K7dzzEvM0bp4pln","betreff":"Trainings-App Rückmeldung"};
+var RM_TEST = /[?&]ogt-test=1(&|$)/.test(location.search);   // nur für tests/run_tests.py: schickt an den Testserver
+var RM_STATUS = { laeuft: false, id: '', self: false, ther: 'Olli' };
+var RM_ECDH = { name: 'ECDH', namedCurve: 'P-256' };
+
+function rmB64(bytes){ var s = ''; for (var i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function rmVerbinde(){ var n = 0, i, p = 0; for (i = 0; i < arguments.length; i++) n += arguments[i].length; var out = new Uint8Array(n); for (i = 0; i < arguments.length; i++){ out.set(arguments[i], p); p += arguments[i].length; } return out; }
+function rmStrom(bytes, strom){ return new Response(new Blob([bytes]).stream().pipeThrough(strom)).arrayBuffer().then(function(b){ return new Uint8Array(b); }); }
+function rmVerpacken(objekt){
+  var daten = new TextEncoder().encode(JSON.stringify(objekt)), flags = 0;
+  var gepackt = typeof CompressionStream === 'function'
+    ? rmStrom(daten, new CompressionStream('deflate')).then(function(z){ flags = 1; return z; }, function(){ return daten; })
+    : Promise.resolve(daten);
+  return gepackt.then(function(d){
+    daten = d;
+    return Promise.all([crypto.subtle.importKey('jwk', RM.schluessel, RM_ECDH, false, []), crypto.subtle.generateKey(RM_ECDH, true, ['deriveBits'])]);
+  }).then(function(k){
+    return Promise.all([crypto.subtle.deriveBits({ name: 'ECDH', public: k[0] }, k[1].privateKey, 256), crypto.subtle.exportKey('raw', k[1].publicKey)]);
+  }).then(function(r){
+    var ephRaw = new Uint8Array(r[1]), kopf = new Uint8Array([1, flags]), iv = crypto.getRandomValues(new Uint8Array(12));
+    return crypto.subtle.digest('SHA-256', rmVerbinde(new Uint8Array(r[0]), ephRaw, new TextEncoder().encode('OGT1/AES-GCM')))
+      .then(function(h){ return crypto.subtle.importKey('raw', h, { name: 'AES-GCM' }, false, ['encrypt']); })
+      .then(function(aes){ return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, additionalData: rmVerbinde(kopf, ephRaw) }, aes, daten); })
+      .then(function(c){ return 'OGT1:' + rmB64(rmVerbinde(kopf, ephRaw, iv, new Uint8Array(c))); });
+  });
+}
+function rmLesen(k, d){ try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
+function rmSchreiben(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function rmHeute(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+// Noch nicht gesendet: fertige Einheiten und Einheiten von gestern oder früher, jeweils in ihrer neuesten Fassung
+function rmOffen(){
+  var id = RM_STATUS.id, log = rmLesen('fk:' + id + ':log', {}), tests = rmLesen('fk:' + id + ':tests', []);
+  var ges = rmLesen('ogt:gesendet:' + id, {}), heute = rmHeute(), l = [], t = [];
+  if (log && typeof log === 'object') Object.keys(log).forEach(function(k){
+    var e = log[k];
+    if (e && e.s && (e.f || (e.d && e.d < heute)) && ges['l:' + e.s] !== e.t) l.push(e);
+  });
+  (Array.isArray(tests) ? tests : []).forEach(function(x){ if (x && x.id && ges['t:' + x.id] !== x.t) t.push(x); });
+  return { l: l, t: t, ges: ges };
+}
+function rmHinweis(text){
+  var el = document.getElementById('ogt-rm');
+  if (!el){ el = document.createElement('div'); el.id = 'ogt-rm'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+  el.textContent = text; el.className = 'ogt-rm zeigen';
+  clearTimeout(rmHinweis.t); rmHinweis.t = setTimeout(function(){ el.className = 'ogt-rm'; }, 4500);
+}
+function rmSenden(){
+  if (!RM || !RM_STATUS.id || RM_STATUS.laeuft || !window.crypto || !crypto.subtle || !window.fetch) return;
+  if (navigator.onLine === false) return;
+  var o = rmOffen(); if (!o.l.length && !o.t.length) return;
+  RM_STATUS.laeuft = true;
+  rmVerpacken({ v: 1, i: RM_STATUS.id, gesendet: new Date().toISOString(), l: o.l, t: o.t }).then(function(code){
+    return fetch(RM_TEST ? 'emailjs-test' : RM.adresse, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service_id: RM.service, template_id: RM.template, user_id: RM.user,
+        template_params: { subject: RM.betreff, message: 'Trainings-App · verschlüsselte Rückmeldung\n' + code } }) });
+  }).then(function(r){
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    o.l.forEach(function(e){ o.ges['l:' + e.s] = e.t; });
+    o.t.forEach(function(x){ o.ges['t:' + x.id] = x.t; });
+    rmSchreiben('ogt:gesendet:' + RM_STATUS.id, o.ges);
+    rmHinweis(RM_STATUS.self ? 'Gesendet ✓ – kommt in deiner Übersicht an.' : 'Gesendet ✓ – ' + RM_STATUS.ther + ' sieht deine Einheit.');
+  }).catch(function(){
+    rmHinweis('Noch nicht gesendet – klappt beim nächsten Öffnen mit Internet.');
+  }).then(function(){ RM_STATUS.laeuft = false; });
+}
+function rmStart(id, C){
+  if (!RM || C.rueckmeldung === false){ RM = null; return; }
+  RM_STATUS.id = id;
+  RM_STATUS.self = !!C.inhalt.SELF;
+  RM_STATUS.ther = String((C.stand && C.stand.profile && C.stand.profile.ther) || (C.inhalt.DEF && C.inhalt.DEF.ther) || 'Olli').split(' ')[0];
+  setTimeout(rmSenden, 1500);
+  setInterval(rmSenden, 60000);
+  window.addEventListener('online', function(){ setTimeout(rmSenden, 1000); });
+  document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'hidden') rmSenden(); });
+  var root = document.getElementById('fk-root');
+  if (root) root.addEventListener('click', function(ev){
+    var b = ev.target && ev.target.closest ? ev.target.closest('[data-act="finish"]') : null;
+    if (b) setTimeout(rmSenden, 1500);
+  });
+}
+function rmBanner(self, ther){
+  if (!RM) return 'Deine Einträge bleiben auf diesem Gerät' + (self ? '.' : ' – schick sie mit „Per WhatsApp schicken“ an ' + ther + '.');
+  return 'Deine Einträge bleiben auf diesem Gerät und gehen nach jeder Einheit verschlüsselt ' + (self ? 'in deine Übersicht.' : 'an ' + ther + '.');
+}
+
 function starten(){
   var ausLink = planAus(location.hash), p = ausLink || gemerkt();
   if (!p){ karte('Dein Trainingsplan', 'Öffne den Link aus deiner Nachricht – oder füge ihn hier ein.', true); return; }
@@ -72,7 +162,9 @@ function starten(){
     if (!C || C.format !== 'ogt-plan' || !C.inhalt) throw fehler('schluessel');
     merken(p);
     document.title = (C.inhalt.TITLE || 'Training') + ' · O.G. Physiotherapie';
+    if (!RM || C.rueckmeldung === false) RM = null;
     run(C);
+    rmStart(p.id, C);
   }).catch(function(e){
     var art = (e && e.art) || 'netz', m = MELDUNG[art] || MELDUNG.netz;
     if (art === 'fehlt' || art === 'schluessel') vergessen();
@@ -974,7 +1066,7 @@ function banners(){
   var h = '';
   if (CONFLICT) h += '<div class="banner bad" role="alert">' + ICON.alert + '<div class="b-body"><b>Eine Änderung wurde nicht gespeichert.</b><p>Gleichzeitig wurde eine andere Version gespeichert – die siehst du jetzt. Deine letzte Änderung kannst du übernehmen oder verwerfen.</p><div class="row"><button class="btn sm pri" data-act="conflict-apply">Meine Änderung übernehmen</button><button class="btn sm" data-act="conflict-drop">Verwerfen</button></div></div></div>';
   if (SAVE.err) h += '<div class="banner warn" role="alert">' + ICON.alert + '<div class="b-body"><p>' + esc(SAVE.err) + '</p><div class="row"><button class="btn sm" data-act="retry-save">Erneut speichern</button></div></div></div>';
-  if (MODE === 'reader' && WHY === 'standalone') h += '<div class="banner info">' + ICON.info + '<div class="b-body"><p>Deine Einträge bleiben auf diesem Gerät' + (SELF ? '.' : ' – schick sie mit „Per WhatsApp schicken“ an ' + esc(therAcc()) + '.') + '</p></div></div>';
+  if (MODE === 'reader' && WHY === 'standalone') h += '<div class="banner info">' + ICON.info + '<div class="b-body"><p>' + esc(rmBanner(SELF, therAcc())) + '</p></div></div>';
   return h;
 }
 var TABS = [['start', 'Überblick', 'home'], ['plan', 'Plan', 'plan'], ['log', 'Protokoll', 'log'], ['tests', 'Tests', 'gauge'], ['infos', 'Infos', 'info']];

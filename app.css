@@ -565,3 +565,6 @@ a.btn{text-decoration:none}
 .ogt-karte input{font:inherit;font-size:16px;padding:12px;border:1px solid #c9d0db;border-radius:10px;width:100%;box-sizing:border-box;min-width:0}
 .ogt-karte button{font:inherit;font-weight:700;font-size:16px;padding:13px;border:0;border-radius:10px;background:#002141;color:#fff;cursor:pointer}
 #ogt-fehler{color:#b42318;min-height:1.2em;margin:0}
+/* Kurzer Hinweis nach dem automatischen Senden (nicht aus dem Artefakt) */
+.ogt-rm{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translate(-50%,24px);opacity:0;pointer-events:none;width:max-content;max-width:min(92vw,420px);padding:10px 16px;border-radius:12px;background:#002141;color:#fff;font:600 14px/1.35 var(--font-body,system-ui,sans-serif);box-shadow:0 4px 14px rgba(0,0,0,.25);transition:opacity .25s,transform .25s;z-index:50;text-align:center;box-sizing:border-box}
+.ogt-rm.zeigen{opacity:1;transform:translate(-50%,0)}
