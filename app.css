@@ -568,6 +568,8 @@ a.btn{text-decoration:none}
 /* Kurzer Hinweis nach dem automatischen Senden (nicht aus dem Artefakt) */
 .ogt-rm{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translate(-50%,24px);opacity:0;pointer-events:none;width:max-content;max-width:min(92vw,420px);padding:10px 16px;border-radius:12px;background:#002141;color:#fff;font:600 14px/1.35 var(--font-body,system-ui,sans-serif);box-shadow:0 4px 14px rgba(0,0,0,.25);transition:opacity .25s,transform .25s;z-index:50;text-align:center;box-sizing:border-box}
 .ogt-rm.zeigen{opacity:1;transform:translate(-50%,0)}
+/* Coach-Ansicht aus Ollis Übersicht (nicht aus dem Artefakt) */
+.ogt-coach{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:8px;z-index:45;background:#0F767C;color:#fff;font:700 12px/1 var(--font-body,system-ui,sans-serif);padding:6px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none}
 /* Extra-Training: Knopf unten rechts und kleines Fenster (nicht aus dem Artefakt) */
 body.ogt-mit-extra{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
 .ogt-extra-knopf{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;font:700 15px/1 var(--font-body,system-ui,sans-serif);padding:14px 18px;border:0;border-radius:999px;background:var(--accent,#1f4fb4);color:var(--accent-ink,#fff);box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer}

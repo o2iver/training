@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version 4a27813edc
+/*! O.G. Trainings-App · Grundgerüst · Version e07b53a3e8
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -8,6 +8,7 @@
 // ===================== Laden: persönlichen Plan öffnen =====================
 var MERK = 'ogt:plan';                                  // zuletzt geöffneter Plan auf diesem Gerät
 var LINK_RE = /([a-z0-9]{12})\.([A-Za-z0-9_-]{43})/;   // Kennung.Schlüssel
+var COACH = /[?&]coach=1(&|$)/.test(location.search);  // „Plan ansehen“ aus Ollis Übersicht: nur ansehen – nichts merken, nichts senden
 
 function b64uBytes(s){
   s = String(s).replace(/-/g, '+').replace(/_/g, '/');
@@ -165,6 +166,7 @@ function rmStart(id, C){
 // Wohin die App automatisch sendet – für die Hinweistexte
 function rmWohin(self, ther){ return self ? 'in deine Übersicht' : 'an ' + ther; }
 function rmBanner(self, ther){
+  if (COACH) return 'Coach-Ansicht: Hier siehst du den Plan so, wie die Athletin ihn sieht – nur zum Ansehen, nichts wird gespeichert oder gesendet.';
   if (!RM) return 'Deine Einträge bleiben auf diesem Gerät' + (self ? '.' : ' – schick sie mit „Per WhatsApp schicken“ an ' + ther + '.');
   return 'Deine Einträge bleiben auf diesem Gerät und gehen nach jeder Einheit verschlüsselt ' + rmWohin(self, ther) + '.';
 }
@@ -251,11 +253,12 @@ function starten(){
   if (!p){ karte('Dein Trainingsplan', 'Öffne den Link aus deiner Nachricht – oder füge ihn hier ein.', true); return; }
   laden(p).then(function(C){
     if (!C || C.format !== 'ogt-plan' || !C.inhalt) throw fehler('schluessel');
-    merken(p);
-    document.title = (C.inhalt.TITLE || 'Training') + ' · O.G. Physiotherapie';
-    if (!RM || C.rueckmeldung === false) RM = null;
+    if (!COACH) merken(p);
+    document.title = (COACH ? 'Ansicht · ' : '') + (C.inhalt.TITLE || 'Training') + ' · O.G. Physiotherapie';
+    if (!RM || C.rueckmeldung === false || COACH) RM = null;
     run(C);
     rmStart(p.id, C);
+    if (COACH){ var c = document.createElement('div'); c.className = 'ogt-coach'; c.textContent = 'Coach-Ansicht · nur ansehen'; document.body.appendChild(c); }
   }).catch(function(e){
     var art = (e && e.art) || 'netz', m = MELDUNG[art] || MELDUNG.netz;
     if (art === 'fehlt' || art === 'schluessel') vergessen();
@@ -1064,7 +1067,7 @@ function saveFile(filename, data, okMsg){
 }
 
 // ---------- Athletin: Eintragen ----------
-function canLog(){ return MODE === 'reader' || (SELF && MODE === 'writer'); }
+function canLog(){ return !COACH && (MODE === 'reader' || (SELF && MODE === 'writer')); }
 function getEntry(sid){ var e = L()[sid]; return e ? JSON.parse(JSON.stringify(e)) : null; }
 function newEntry(sid){ var ps = parseSid(sid); return { s: sid, d: '', x: {}, r: {}, e: null, m: SESS[ps.s].min, fr: null, k: null, ks: '', o: null, sh: null, n: '', f: 0, t: Date.now() }; }
 function putEntry(e, quiet){
@@ -1321,7 +1324,7 @@ function testHint(w, s){
   return h;
 }
 function sendCard(){
-  if (MODE !== 'reader' || (RM && SELF)) return '';   // eigener Plan mit automatischer Rückmeldung: kein WhatsApp an sich selbst
+  if (MODE !== 'reader' || (RM && SELF) || COACH) return '';   // eigener Plan mit automatischer Rückmeldung bzw. Coach-Ansicht: kein WhatsApp
   var pd = pending(), nl = pd.l.length, nt = pd.t.length, last = lsGet(LK('sent'), ''), parts = [];
   if (nl) parts.push(nl + (nl === 1 ? ' Einheit' : ' Einheiten'));
   if (nt) parts.push(nt + (nt === 1 ? ' Testwert' : ' Testwerte'));

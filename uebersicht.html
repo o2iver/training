@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://og-training.og-physiotherapie.workers.dev; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Übersicht Trainings-App · O.G. Physiotherapie</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Übersicht">
+<style>
+:root{--navy:#002141;--petrol:#0F767C;--bg:#f3f5f8;--karte:#fff;--text:#121826;--grau:#5a6478;--linie:#dfe4ec;--gelb:#9a4a00;--gelbbg:#fff4e0;--rot:#b42318;--rotbg:#fdecea}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--navy);color:#fff;padding:18px 20px}
+header h1{margin:0;font-size:22px;letter-spacing:.2px}
+header p{margin:4px 0 0;opacity:.85;font-size:13px}
+#neu{float:right;font:600 14px system-ui,sans-serif;padding:8px 14px;border:0;border-radius:10px;background:var(--petrol);color:#fff;cursor:pointer}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.karte{background:var(--karte);border-radius:14px;padding:16px 18px;margin:0 0 16px;box-shadow:0 1px 3px rgba(18,24,38,.08)}
+.karte h2{margin:0 0 2px;font-size:19px;color:var(--navy)}
+.karte h3{margin:14px 0 6px;font-size:15px;color:var(--petrol)}
+.klein{color:var(--grau);font-size:13px}
+.zahlen{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.zahl{background:var(--bg);border-radius:10px;padding:8px 12px;min-width:130px}
+.zahl b{display:block;font-size:19px}
+.tabelle{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--linie);vertical-align:top}
+th{font-size:12px;color:var(--grau);font-weight:600}
+.w{white-space:nowrap}
+.frei{white-space:pre-wrap;word-break:break-word}
+.hinweis{background:var(--gelbbg);color:var(--gelb);border-radius:10px;padding:8px 12px;margin:6px 0;font-size:14px}
+.hoch{color:var(--rot);font-weight:700}
+.mittel{color:var(--gelb);font-weight:700}
+.leer{color:var(--grau)}
+details summary{cursor:pointer;color:var(--petrol)}
+details ul{margin:6px 0 0;padding-left:18px}
+.sperre{max-width:640px;margin:60px auto;background:var(--rotbg);color:var(--rot);padding:20px;border-radius:12px;font-weight:600}
+footer{max-width:1100px;margin:0 auto;padding:0 16px 28px;color:var(--grau);font-size:12px}
+.form{display:grid;gap:8px;margin-top:10px}
+.form input{font:inherit;font-size:16px;padding:10px;border:1px solid var(--linie);border-radius:10px;width:100%}
+.knopf{font:600 15px system-ui,sans-serif;padding:10px 14px;border:0;border-radius:10px;background:var(--navy);color:#fff;cursor:pointer}
+.knopf.leise{background:transparent;color:var(--petrol);border:1px solid var(--linie)}
+.qr{display:block;max-width:100%;height:auto;margin:10px 0}
+@media (max-width:600px){main{padding:10px}.karte{padding:14px 12px}table{font-size:13px}th,td{padding:6px 5px}header h1{font-size:19px}}
+</style>
+</head>
+<body>
+<header><button id="neu" type="button" onclick="location.reload()">Aktualisieren</button><h1>Übersicht Trainings-App</h1><p id="stand"></p></header>
+<main id="app"><p>Wird entschlüsselt …</p></main>
+<footer id="fuss">Nur auf diesem PC öffnen – diese Datei enthält den privaten Schlüssel für die Rückmeldungen und wird
+nie hochgeladen oder verschickt. Die Werte sind Eigenangaben: Hinweise, keine Diagnose.</footer>
+<script>
+window.OGT_HANDY = {"abholen":"https://og-training.og-physiotherapie.workers.dev/abholen","x":"6mOTJ7vBuEgtp526G71SoXOjfy4qloVX3_zDNtJYKt0","y":"XbhgbaEzHLfsoZVvbKcS5RM6GAWSnu7Y6Pp_2sg2W4k"};
+</script>
+<script>
+(function(){
+'use strict';
+var app = document.getElementById('app');
+// Zwei Fassungen: am PC (Datei mit eingebettetem Schlüssel) und fürs Handy (online, OGT_HANDY: ohne Daten und
+// ohne Schlüssel – einmal per QR-Code freigeschaltet, der Schlüssel bleibt nur auf dem Handy)
+var HANDY = window.OGT_HANDY || null;
+if (HANDY ? !!window.OGT_PRIVAT : location.protocol !== 'file:'){
+  app.innerHTML = '<div class="sperre">Diese Übersicht darf nicht im Internet liegen, weil sie den privaten Schlüssel enthält. Bitte sofort offline nehmen und Claude Bescheid geben – dann wird ein neuer Schlüssel erzeugt.</div>';
+  return;
+}
+var PLAENE = window.OGT_PLAENE || {}, EINGANG = window.OGT_EINGANG || [], PRIVAT = window.OGT_PRIVAT;
+
+// ---------- Entschlüsseln (Gegenstück zu rmVerpacken in der App) ----------
+function bytes(text){ var t = String(text).replace(/-/g, '+').replace(/_/g, '/'); while (t.length % 4) t += '='; var s = atob(t), b = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; }
+function verbinde(){ var n = 0, i, p = 0; for (i = 0; i < arguments.length; i++) n += arguments[i].length; var out = new Uint8Array(n); for (i = 0; i < arguments.length; i++){ out.set(arguments[i], p); p += arguments[i].length; } return out; }
+function strom(b, s){ return new Response(new Blob([b]).stream().pipeThrough(s)).arrayBuffer().then(function(x){ return new Uint8Array(x); }); }
+var ECDH = { name: 'ECDH', namedCurve: 'P-256' };
+async function auspacken(code){
+  var roh = bytes(String(code).slice(5));
+  if (roh.length < 2 + 65 + 12 + 16 || roh[0] !== 1) throw new Error('FORMAT');
+  var kopf = roh.subarray(0, 2), ephRaw = roh.subarray(2, 67), iv = roh.subarray(67, 79), chiffrat = roh.subarray(79);
+  var eph = await crypto.subtle.importKey('raw', ephRaw, ECDH, false, []);
+  var eigen = await crypto.subtle.importKey('jwk', PRIVAT, ECDH, false, ['deriveBits']);
+  var geheim = await crypto.subtle.deriveBits({ name: 'ECDH', public: eph }, eigen, 256);
+  var h = await crypto.subtle.digest('SHA-256', verbinde(new Uint8Array(geheim), ephRaw, new TextEncoder().encode('OGT1/AES-GCM')));
+  var aes = await crypto.subtle.importKey('raw', h, { name: 'AES-GCM' }, false, ['decrypt']);
+  var daten = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv, additionalData: verbinde(kopf, ephRaw) }, aes, chiffrat));
+  if (kopf[1] & 1) daten = await strom(daten, new DecompressionStream('deflate'));
+  return JSON.parse(new TextDecoder().decode(daten));
+}
+
+// ---------- Helfer ----------
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function pad(n){ return String(n).padStart(2, '0'); }
+function iso(d){ return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function fmt(s){ return /^\d{4}-\d{2}-\d{2}/.test(s || '') ? s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4) : '–'; }
+function zahl(n){ return n == null || n === '' ? '?' : String(n).replace('.', ','); }
+function montag(d){ var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x; }
+function teilSid(s){ var m = /^w(\d+)-(.+)$/.exec(s || ''); return m ? { w: +m[1], s: m[2] } : { w: null, s: s || '' }; }
+// Farbe nur für Beschwerdewerte (ab 3 gelb, ab 5 rot); Frische und Anstrengung bleiben neutral
+function wert(v, beschwerde){ if (v == null || v === '') return '–'; var k = !beschwerde ? '' : (v >= 5 ? 'hoch' : (v >= 3 ? 'mittel' : '')); return '<span class="' + k + '">' + esc(v) + '/10</span>'; }
+function fmtZeit(s){ var m = /^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}:\d{2}))?/.exec(s || ''); return m ? m[3] + '.' + m[2] + '.' + m[1] + (m[4] ? ' ' + m[4] + ' Uhr' : '') : (s || '–'); }
+function einheitName(e, plan){ var p = teilSid(e.s), s = plan.sess[p.s]; return (p.w ? 'W' + p.w + ' · ' : '') + (s ? (s.s || s.t) : p.s); }
+
+function saetze(e, plan){
+  var out = [];
+  Object.keys(e.x || {}).forEach(function(k){
+    var ex = plan.ex[k] || { n: k, t: '' }, rows = (e.x[k] || []).filter(Array.isArray), teile = [];
+    if (ex.t === 'tick'){
+      var n = rows.filter(function(r){ return r[r.length - 1]; }).length;
+      if (n) out.push('<li><b>' + esc(ex.n) + ':</b> ' + n + '× erledigt</li>');
+      return;
+    }
+    rows.forEach(function(r){
+      if (!r.slice(0, -1).some(function(v){ return v != null; })) return;
+      var offen = r[r.length - 1] ? '' : ' (nicht abgehakt)';
+      if (ex.t === 'kg') teile.push(zahl(r[0]) + '×' + zahl(r[1]) + offen);
+      else if (ex.t === 'kg1') teile.push(zahl(r[0]) + ' kg' + offen);
+      else if (ex.t === 'sec') teile.push(zahl(r[0]) + ' s' + offen);
+      else teile.push(zahl(r[0]) + ' Wdh.' + offen);
+    });
+    if (teile.length) out.push('<li><b>' + esc(ex.n) + ':</b> ' + esc(teile.join(', ')) + (e.r && e.r[k] != null ? ' (Reserve ' + esc(e.r[k]) + ')' : '') + '</li>');
+  });
+  (Array.isArray(e.z) ? e.z : []).forEach(function(z){ out.push('<li>Zusätzlich: ' + esc((z && (z.n || z.name)) || 'eigene Übung') + '</li>'); });
+  return out.length ? '<ul>' + out.join('') + '</ul>' : '<span class="leer">keine Sätze eingetragen</span>';
+}
+
+function planKarte(k, d){
+  var plan = PLAENE[k] || { titel: 'Unbekannter Plan', ex: {}, sess: {}, schmerz: 'Beschwerde', arm: 'Schulter', seiten: {} };
+  var log = Object.keys(d.log).map(function(s){ return d.log[s]; }).sort(function(a, b){ return (b.d || '') < (a.d || '') ? -1 : ((b.d || '') > (a.d || '') ? 1 : b.t - a.t); });
+  var heute = new Date(), wo = iso(montag(heute)), grenze = new Date(heute); grenze.setDate(grenze.getDate() - 14);
+  var g = iso(grenze), dieseWoche = log.filter(function(e){ return e.f && (e.d || '') >= wo; }).length, letzte = log[0];
+  // Extra-Trainings (Freitext aus der App); gelöschte kommen nur als Löschmarke an und werden nicht gezeigt
+  var extra = Object.keys(d.extra || {}).map(function(i){ return d.extra[i]; }).filter(function(x){ return x && !x.geloescht; })
+    .sort(function(a, b){ return (b.d || '') < (a.d || '') ? -1 : ((b.d || '') > (a.d || '') ? 1 : b.t - a.t); });
+  var hinweise = [];
+  log.forEach(function(e){
+    if ((e.d || '') < g) return;
+    if (e.k >= 5) hinweise.push(plan.schmerz + ' ' + e.k + '/10 am ' + fmt(e.d) + (e.ks ? ' (' + (plan.seiten[e.ks] || e.ks) + ')' : ''));
+    if (e.o >= 5) hinweise.push(plan.schmerz + ' am Morgen danach ' + e.o + '/10 (' + fmt(e.d) + ')');
+    if (e.sh >= 5) hinweise.push(plan.arm + ' ' + e.sh + '/10 am ' + fmt(e.d));
+  });
+  var h = '<section class="karte" data-plan="' + esc(k) + '"><h2>' + esc(plan.titel) + '</h2><div class="klein">Kennung ' + esc(k)
+    + (plan.start ? ' · Start ' + fmt(plan.start) : '') + ' · letzte Rückmeldung ' + esc(fmtZeit(d.zuletzt)) + '</div>'
+    + (plan.link ? '<p><a class="knopf leise" href="' + esc(planAdresse(plan.link)) + '">Plan ansehen</a></p>' : '');
+  h += '<div class="zahlen"><div class="zahl">diese Woche<b>' + dieseWoche + ' fertig</b></div>'
+    + '<div class="zahl">Einträge gesamt<b>' + log.length + '</b></div>'
+    + '<div class="zahl">letzte Einheit<b>' + (letzte ? fmt(letzte.d) : '–') + '</b></div>'
+    + (extra.length ? '<div class="zahl">Extra-Trainings<b>' + extra.length + '</b></div>' : '') + '</div>';
+  hinweise.forEach(function(t){ h += '<div class="hinweis">Hinweis: ' + esc(t) + ' – ggf. nachfragen.</div>'; });
+  h += '<h3>Einheiten</h3>';
+  if (!log.length) h += '<p class="leer">Noch keine Einheiten übermittelt.</p>';
+  else {
+    h += '<div class="tabelle"><table><thead><tr><th>Datum</th><th>Einheit</th><th>Status</th><th>Min</th><th>Frische</th><th>Anstrengung</th><th>'
+      + esc(plan.schmerz) + '</th><th>morgens danach</th><th>' + esc(plan.arm) + '</th><th>Notiz und Sätze</th></tr></thead><tbody>';
+    log.forEach(function(e){
+      h += '<tr><td class="w">' + fmt(e.d) + '</td><td>' + esc(einheitName(e, plan)) + '</td><td class="w">' + (e.f ? 'fertig ✓' : 'begonnen')
+        + '</td><td>' + (e.m != null ? esc(e.m) : '–') + '</td><td>' + wert(e.fr, false) + '</td><td>' + wert(e.e, false) + '</td><td class="w">' + wert(e.k, true)
+        + (e.ks ? ' ' + esc(plan.seiten[e.ks] || e.ks) : '') + '</td><td>' + wert(e.o, true) + '</td><td>' + wert(e.sh, true) + '</td><td>'
+        + (e.n ? '„' + esc(e.n) + '“' : '') + '<details><summary>Sätze</summary>' + saetze(e, plan) + '</details></td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+  if (extra.length){
+    h += '<h3>Extra-Trainings</h3><div class="tabelle"><table><thead><tr><th>Datum</th><th>Min</th><th>Was gemacht</th></tr></thead><tbody>'
+      + extra.map(function(x){ return '<tr><td class="w">' + fmt(x.d) + '</td><td>' + (x.m != null ? esc(x.m) : '–') + '</td><td class="frei">' + esc(x.n) + '</td></tr>'; }).join('')
+      + '</tbody></table></div>';
+  }
+  var tests = Object.keys(d.tests).map(function(i){ return d.tests[i]; });
+  if (tests.length){
+    h += '<h3>Tests</h3><ul>' + tests.map(function(t){
+      var w = t.l != null || t.r != null ? 'L ' + zahl(t.l) + ' · R ' + zahl(t.r) : zahl(t.v);
+      return '<li>' + fmt(t.d) + ' · ' + esc((plan.tests[t.k] && plan.tests[t.k].n) || t.k || 'Test') + ': ' + esc(w) + '</li>';
+    }).join('') + '</ul>';
+  }
+  return h + '</section>';
+}
+
+// ---------- Handy: einmal freischalten, der Schlüssel bleibt nur auf diesem Gerät ----------
+var MERK = 'ogt:uebersicht', FREI_RE = /([A-Za-z0-9_-]{8,})\.([A-Za-z0-9_-]{43})/;   // Leseschlüssel.privater Schlüssel
+function merken(text){ var m = FREI_RE.exec(String(text || '')); if (!m) return false; try { localStorage.setItem(MERK, m[1] + '.' + m[2]); return true; } catch (e) { return false; } }
+function gemerkt(){ try { var m = FREI_RE.exec(localStorage.getItem(MERK) || ''); return m ? { lese: m[1], d: m[2] } : null; } catch (e) { return null; } }
+function vergessen(){ try { localStorage.removeItem(MERK); } catch (e) {} }
+function freischaltKarte(fehler){
+  document.getElementById('stand').textContent = 'Noch nicht freigeschaltet';
+  app.innerHTML = '<section class="karte"><h2>Übersicht freischalten</h2><p>Einmalig: Öffne am PC deine Übersicht, klapp dort „Handy freischalten“ auf und scanne den QR-Code mit der Handy-Kamera. Oder füge den Freischalt-Link hier ein.</p>'
+    + '<form id="frei" class="form" novalidate><input id="frei-link" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Freischalt-Link einfügen">'
+    + '<button type="submit" class="knopf">Freischalten</button><p class="klein" id="frei-fehler" role="alert">' + esc(fehler || '') + '</p></form></section>';
+  document.getElementById('frei').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    if (merken(document.getElementById('frei-link').value)) location.reload();
+    else document.getElementById('frei-fehler').textContent = 'Das ist kein vollständiger Freischalt-Link.';
+  });
+}
+async function handyLaden(){
+  if (location.hash.length > 1){
+    var neu = merken(location.hash);
+    history.replaceState(null, '', location.pathname + location.search);   // Schlüssel nicht in der Adresszeile stehen lassen
+    if (!neu){ freischaltKarte('Der Freischalt-Link ist unvollständig.'); return false; }
+  }
+  var s = gemerkt();
+  if (!s){ freischaltKarte(); return false; }
+  PRIVAT = { kty: 'EC', crv: 'P-256', x: HANDY.x, y: HANDY.y, d: s.d };
+  try { await crypto.subtle.importKey('jwk', PRIVAT, ECDH, false, ['deriveBits']); }
+  catch (e) { vergessen(); freischaltKarte('Der Schlüssel passt nicht – bitte neu freischalten.'); return false; }
+  var adresse = HANDY.abholen, q = new URLSearchParams(location.search).get('abholen');
+  if (q && /^(127\.0\.0\.1|localhost)$/.test(location.hostname)) adresse = q;   // nur für die Tests auf diesem PC
+  ABHOLEN = { adresse: adresse, schluessel: s.lese };
+  try {   // Namen von Plänen, Einheiten und Übungen: verschlüsselt neben der Seite, Schlüssel aus dem privaten Schlüssel abgeleitet
+    var r = await fetch('uebersicht-daten.json', { cache: 'no-store' });
+    if (r.ok){
+      var v = await r.json();
+      var k = await crypto.subtle.importKey('raw', await crypto.subtle.digest('SHA-256', new TextEncoder().encode('OGT-Uebersicht/' + s.d)), { name: 'AES-GCM' }, false, ['decrypt']);
+      PLAENE = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes(v.iv) }, k, bytes(v.ct))));
+    }
+  } catch (e) { /* ohne Namen weiter – die Einträge selbst sind trotzdem lesbar */ }
+  return true;
+}
+function handyFuss(){
+  var s = gemerkt();
+  return '<section class="karte"><details><summary>Auf dem Home-Bildschirm nutzen · Freischaltung entfernen</summary>'
+    + '<p class="klein">iPhone: Teilen → „Zum Home-Bildschirm“. Weil das iPhone den Speicher dort trennt, fragt die Übersicht dann einmal nach dem Freischalt-Link – den hier kopieren und dort einfügen. Android: Menü → „Zum Startbildschirm hinzufügen“, dann ist nichts weiter nötig.</p>'
+    + '<p><button type="button" class="knopf leise" id="kopie">Freischalt-Link kopieren</button> <span class="klein" id="kopie-info"></span></p>'
+    + '<p class="klein">Den Link niemandem schicken: Er öffnet alle Rückmeldungen.</p>'
+    + '<p><button type="button" class="knopf leise" id="weg">Freischaltung von diesem Handy entfernen</button></p></details></section>';
+  // Klick-Handler setzt los() nach dem Zeichnen
+}
+function handyKnoepfe(){
+  var k = document.getElementById('kopie'), w = document.getElementById('weg'), s = gemerkt();
+  if (k && s) k.addEventListener('click', function(){
+    var link = location.origin + location.pathname + '#' + s.lese + '.' + s.d;
+    navigator.clipboard.writeText(link).then(function(){ document.getElementById('kopie-info').textContent = 'Kopiert ✓'; },
+      function(){ document.getElementById('kopie-info').textContent = 'Kopieren ging nicht.'; });
+  });
+  if (w) w.addEventListener('click', function(){ if (confirm('Freischaltung von diesem Handy entfernen?')){ vergessen(); location.reload(); } });
+}
+// Plan in der App ansehen – reine Ansicht (coach=1): nichts merken, nichts senden
+function planAdresse(link){ return (HANDY ? 'index.html' : (window.OGT_APP_ADRESSE || '')) + '?coach=1#' + link; }
+// Leiste zum Umschalten zwischen den Plänen
+function leiste(keys, daten){
+  if (keys.length < 2) return '';
+  return '<nav class="karte" id="leiste" aria-label="Pläne"><button type="button" class="knopf" data-zeige="">Alle</button> '
+    + keys.map(function(k){ return '<button type="button" class="knopf leise" data-zeige="' + esc(k) + '">' + esc((PLAENE[k] || {}).titel || k) + '</button>'; }).join(' ') + '</nav>';
+}
+function leisteKnoepfe(){
+  var l = document.getElementById('leiste'); if (!l) return;
+  l.addEventListener('click', function(ev){
+    var b = ev.target.closest ? ev.target.closest('[data-zeige]') : null; if (!b) return;
+    var k = b.getAttribute('data-zeige');
+    document.querySelectorAll('section[data-plan]').forEach(function(s){ s.hidden = !!k && s.getAttribute('data-plan') !== k; });
+    l.querySelectorAll('[data-zeige]').forEach(function(x){ x.className = 'knopf' + (x === b ? '' : ' leise'); });
+  });
+}
+function pcHandyKarte(){
+  if (!window.OGT_HANDY_LINK) return '';
+  return '<section class="karte"><details><summary>Handy freischalten</summary>'
+    + '<p class="klein">Mit der Handy-Kamera scannen – danach siehst du diese Übersicht auch auf dem Handy, ohne PC. Den Code niemandem zeigen und den Link nicht per Mail oder Chat verschicken: Er öffnet alle Rückmeldungen.</p>'
+    + '<div class="qr">' + (window.OGT_HANDY_QR || '') + '</div>'
+    + '<p class="klein">Freischalt-Link (falls Scannen nicht klappt):</p><input class="klein" readonly style="width:100%" value="' + esc(window.OGT_HANDY_LINK) + '" onfocus="this.select()"></details></section>';
+}
+
+// ---------- Live vom eigenen Empfang (Cloudflare) holen ----------
+var ABHOLEN = window.OGT_ABHOLEN || null;
+function lokal(s){ var d = new Date(s); return isNaN(d) ? '' : iso(d) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+async function liveHolen(){
+  if (!ABHOLEN) return { liste: [], text: '' };
+  var liste = [], seit = 0;
+  try {
+    while (true){
+      var r = await fetch(ABHOLEN.adresse + '?seit=' + seit, { headers: { 'Authorization': 'Bearer ' + ABHOLEN.schluessel }, cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      var d = await r.json(), teil = Array.isArray(d.eintraege) ? d.eintraege : [];
+      teil.forEach(function(x){ if (x && typeof x.code === 'string') liste.push({ empfangen: lokal(x.eingang), code: x.code }); seit = Math.max(seit, +x.id || 0); });
+      if (teil.length < 500) break;
+    }
+    var j = new Date();
+    return { liste: liste, text: 'live abgerufen um ' + pad(j.getHours()) + ':' + pad(j.getMinutes()) + ' Uhr' };
+  } catch (e) {
+    return { liste: [], text: 'Live-Abruf nicht möglich (keine Verbindung?) – gezeigt wird der gespeicherte Stand' };
+  }
+}
+
+async function los(){
+  if (!window.crypto || !crypto.subtle){ app.innerHTML = '<div class="sperre">Dieser Browser kann nicht entschlüsseln. Bitte in Chrome oder Edge öffnen.</div>'; return; }
+  var live = await liveHolen(), gesehen = {};
+  var alle = EINGANG.concat(live.liste).filter(function(x){ if (!x || gesehen[x.code]) return false; gesehen[x.code] = 1; return true; });
+  var daten = {}, kaputt = 0, tests = 0, test = '';
+  var sortiert = alle.slice().sort(function(a, b){ return (a.empfangen || '') < (b.empfangen || '') ? -1 : 1; });
+  for (var i = 0; i < sortiert.length; i++){
+    var obj;
+    try { obj = await auspacken(sortiert[i].code); } catch (e) { kaputt++; continue; }
+    if (!obj || !obj.i) { kaputt++; continue; }
+    if (obj.verbindungstest){ tests++; test = sortiert[i].empfangen || test; continue; }   // Testsignal aus verbindungstest.py, ohne Trainingsdaten
+    var d = daten[obj.i] || (daten[obj.i] = { log: {}, tests: {}, extra: {}, zuletzt: '' });
+    (Array.isArray(obj.l) ? obj.l : []).forEach(function(e){ if (e && e.s){ var b = d.log[e.s]; if (!b || e.t > b.t) d.log[e.s] = e; } });
+    (Array.isArray(obj.t) ? obj.t : []).forEach(function(t){ if (t && t.id){ var b = d.tests[t.id]; if (!b || t.t > b.t) d.tests[t.id] = t; } });
+    (Array.isArray(obj.extra) ? obj.extra : []).forEach(function(x){ if (x && x.id){ var b = d.extra[x.id]; if (!b || x.t > b.t) d.extra[x.id] = x; } });
+    if ((sortiert[i].empfangen || '') > d.zuletzt) d.zuletzt = sortiert[i].empfangen || '';
+  }
+  document.getElementById('stand').textContent = (live.text ? live.text.charAt(0).toUpperCase() + live.text.slice(1) : 'Stand: ' + (window.OGT_STAND || '–'))
+    + ' · ' + (alle.length - tests) + ' Rückmeldung(en)' + (tests ? ' · Verbindungstest ' + fmtZeit(test) + ' ✓' : '');
+  // auch Pläne ohne Rückmeldung zeigen, damit sich jeder Plan ansehen lässt
+  Object.keys(PLAENE).forEach(function(k){ if (!daten[k]) daten[k] = { log: {}, tests: {}, extra: {}, zuletzt: '' }; });
+  var keys = Object.keys(daten).sort(function(a, b){ return daten[a].zuletzt < daten[b].zuletzt ? 1 : (daten[a].zuletzt > daten[b].zuletzt ? -1 : ((PLAENE[a] || {}).titel || a).localeCompare((PLAENE[b] || {}).titel || b)); });
+  var h = leiste(keys, daten);
+  if (!keys.length) h += '<section class="karte"><h2>Noch keine Rückmeldungen</h2><p>Sobald in der App „Training speichern“ gedrückt wurde, kommt die Einheit hier an – nach dem nächsten Abholen.</p></section>';
+  keys.forEach(function(k){ h += planKarte(k, daten[k]); });
+  if (kaputt) h += '<p class="klein">' + kaputt + ' Rückmeldung(en) konnten nicht gelesen werden (anderer Schlüssel oder beschädigt).</p>';
+  h += HANDY ? handyFuss() : pcHandyKarte();
+  app.innerHTML = h;
+  leisteKnoepfe();
+  if (HANDY) handyKnoepfe();
+  document.body.setAttribute('data-fertig', '1');
+}
+function fehlerZeigen(e){ app.innerHTML = '<div class="sperre">Fehler beim Entschlüsseln: ' + esc(e && e.message) + '</div>'; }
+if (HANDY){
+  document.getElementById('fuss').textContent = 'Der Schlüssel liegt nur auf diesem Handy – die Bildschirmsperre schützt ihn. Die Werte sind Eigenangaben: Hinweise, keine Diagnose.';
+  handyLaden().then(function(ok){ if (ok) return los(); }).catch(fehlerZeigen);
+} else los().catch(fehlerZeigen);
+})();
+</script>
+</body>
+</html>
