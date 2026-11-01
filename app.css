@@ -1,5 +1,9 @@
 /* O.G. Trainings-App · Gestaltung, übernommen aus dem Artefakt „Training Olli“ (27.10.2026).
-   Schriften kommen vom Gerät, nichts wird von fremden Servern geladen. */
+   Überschriften in Barlow Condensed (SIL Open Font License, Datei liegt der App bei, seit 01.11.2026),
+   Fließtext mit Schriften vom Gerät – nichts wird von fremden Servern geladen. */
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:600;font-display:swap;src:url('barlow-condensed-600.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:700;font-display:swap;src:url('barlow-condensed-700.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Barlow Condensed';font-style:italic;font-weight:800;font-display:swap;src:url('barlow-condensed-800-kursiv.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
 :root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
 /* Layout: Anzeigetafel oben (Woche · Block · Einheiten) mit einer Hantelstange als Linie, darunter eine Spalte (max. 760px) mit Karten. Farben nach den Wettkampf-Hantelscheiben: Blau (20 kg) für die Hypertrophie-Blöcke, Rot (25 kg) für den Kraftblock. Schwester-Werkzeug zu Flügelkraft, Paradekraft und Durchbruchkraft. */
 :root{
@@ -26,7 +30,7 @@
   --s1:#1f4fb4; --s2:#d4940a;
   --r1:#b9cdf3; --r2:#6d93e3; --r3:#1f4fb4;
   --grid:#e6eaf1; --axis:#c4ccd9;
-  --font-display:'Saira Condensed','Barlow Condensed','Roboto Condensed','Arial Narrow','Helvetica Neue',Arial,sans-serif;
+  --font-display:'Barlow Condensed','Saira Condensed','Roboto Condensed','Arial Narrow','Helvetica Neue',Arial,sans-serif;
   --font-body:'Source Sans 3',system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
   --r-card:14px;
   --r-ctl:10px;
@@ -376,6 +380,8 @@ a.btn{text-decoration:none}
 .wkd.done{background:var(--ok-soft);border-color:transparent}
 .wkd.done .s{color:var(--ok)}
 .wkd.part{background:var(--warn-soft);border-color:transparent}
+.wkd.end .s{font-family:inherit;font-size:13px;font-weight:700;letter-spacing:.01em}
+.wkd.end:not(.done):not(.part){background:var(--panel);border-style:dashed}
 .wkd.part .s{color:var(--warn)}
 .wkd.rest .s{color:var(--axis);font-size:15px}
 
@@ -592,3 +598,12 @@ body.ogt-mit-extra{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
 .ogt-extra li{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;padding:10px 12px;border-radius:var(--r-ctl,10px);background:var(--panel-2,#f6f8fb)}
 .ogt-extra li p{margin:2px 0 0;white-space:pre-wrap;word-break:break-word;font-size:14px}
 .ogt-extra li button{flex:none;padding:6px 10px;font-size:13px}
+/* Eigene Schriftzüge und Farbwelten je Plan (seit 01.11.2026): Schriftzug als SVG im Plan (LOGO_SVG),
+   Farben und Kopfzeilen-Deko aus dem jeweiligen Artefakt (THEME) */
+.wordmark{margin:-4px 0 0}
+.wordmark svg{display:block;width:100%;height:auto;overflow:visible}
+.wordmark .w{font-family:'Barlow Condensed','Saira Condensed','Arial Narrow',sans-serif;font-style:italic;font-weight:800}
+.deko-9m .board::before{left:16px;right:16px;top:9px;height:3px;border-radius:2px;opacity:.8;background:repeating-linear-gradient(90deg,var(--line9) 0 18px,transparent 18px 32px)}
+.deko-pfosten .board::before{left:0;right:0;top:0;height:6px;border-radius:0;opacity:1;background:repeating-linear-gradient(90deg,var(--post-red) 0 28px,var(--post-white) 28px 56px)}
+.deko-keine .board::before{display:none}
+.deko-keine .board{padding-top:14px}

@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version f2167b37d8
+/*! O.G. Trainings-App · Grundgerüst · Version 1b0c58b490
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -387,7 +387,19 @@ var WARM_LBL = I.WARM_LBL || 'Aufwärmen & Schulter';
 var Z_EXAMPLE = I.Z_EXAMPLE || 'Beinstrecker';
 var FRESH_LOW = I.FRESH_LOW || 'Woche entlasten (das Optionale und Superset 2 streichen, Hauptübungen 1 Satz weniger) und ehrlich hinschauen: Schlaf, Stress, Arbeit, Krankheit?';
 var FRESH_DROP = I.FRESH_DROP || 'weniger Umfang, das Optionale streichen.';
-var SUGGEST = I.SUGGEST || '';         // 'e1rm' = Gewichtsvorschlag wie in Paradekraft (aus dem letzten Satz geschätzt) – leer = wie Training Olli
+var SUGGEST = I.SUGGEST || '';         // 'e1rm' = Gewichtsvorschlag wie in Paradekraft (aus dem letzten Satz geschätzt); 'e1rm-plus' = wie Flügelkraft (dazu „deutlich zu leicht“) – leer = wie Training Olli
+var OVER_SUB = I.OVER_SUB || 'Weiter mit dem nächsten Block';   // Kopfzeile, wenn alle Wochen vorbei sind
+var EX_HINT_LBL = I.EX_HINT_LBL || 'Bei Beschwerden';          // Überschrift des Beschwerde-Hinweises bei der Übung
+var LEFT_EXTRA = I.LEFT_EXTRA || null;   // { tests, text } – „[L]“ in Übungsnotizen wird zu text, solange links in diesen Tests unter 90 % von rechts liegt (ohne Test: immer)
+var END_DAYS = I.END_DAYS || null;       // Ausdauer an eigenen Tagen (im Wochenstreifen): { sess, days: [[Notiz-Anfang, Wochentag 0–6]], labels: [[Übung, kurz, lang]], sonst: [kurz, lang], head, tail }
+var SESS_HINT = I.SESS_HINT || {};       // { Einheit: { t, hb } } – Hinweis in der Einheit; hb nur, wenn sie zusätzlich Handball spielt
+var HB_NOTE = I.HB_NOTE || null;         // { head, text } – Kasten im Überblick, wenn im Profil „hb“ nicht „0“ ist
+var SERIEN = I.SERIEN || [];             // Übungen, deren Dosis „Serien“ statt „Durchgänge“ heißt
+var RM_HINT = I.RM_HINT || false;        // Hinweis unter dem Kraft-Test, wenn Reserve oder Wiederholungen den Schätzwert ungenau machen
+var STAIR_HEAD = I.STAIR_HEAD || 'Der Weg bis Weihnachten';   // Überschrift der Ziel-Treppe
+var THEME = I.THEME || null;            // { light: {--variable: Farbe}, dark: {…}, deko } – Farbwelt des Plans (aus dem Artefakt); deko: '9m' | 'pfosten' | 'keine'
+var LOGO_SVG = I.LOGO_SVG || '';        // eigener Schriftzug (SVG) oben in der Kopfzeile statt des kleinen Titels
+var TEST_HINT_EXTRA = I.TEST_HINT_EXTRA || '';  // Zusatzsatz im Hinweis „Diese Einheit mit …-Tests“ (z. B. was in Testwochen wegfällt)
 // ===================== Logik =====================
 var SRC = (function(){
   var st = document.getElementById('fk-style'), ap = document.getElementById('fk-app');
@@ -469,6 +481,7 @@ function doseText(p, ex){
   if (p.unit === 'm') return p.sets + ' × ' + rng(p.lo, p.hi) + ' m' + side;
   if (p.lo == null){
     if (ex && ex.n === EX.tests.n) return 'nach Anleitung';
+    if (ex && SERIEN.some(function(k){ return EX[k] === ex; })) return p.sets + (p.sets === 1 ? ' Serie' : ' Serien');
     return p.sets + (p.sets === 1 ? ' Durchgang' : ' Durchgänge') + side;
   }
   return p.sets + ' × ' + rng(p.lo, p.hi) + side + (p.kg != null ? ' · ' + kgText(p.kg, ex) : '') + r;
@@ -485,8 +498,23 @@ function itemsOf(w, s){
   return list.map(function(it){
     var arr = it[2], dose = arr[Math.min(idx, arr.length - 1)];
     if (!dose) return null;
-    return { b: it[0], x: it[1], dose: dose, p: parseDose(dose), n: it[3] || '', ex: EX[it[1]], opt: !!it[4], pr: it[5] || '' };
+    return { b: it[0], x: it[1], dose: dose, p: parseDose(dose), n: noteFor(it[3] || '', w), ex: EX[it[1]], opt: !!it[4], pr: it[5] || '' };
   }).filter(Boolean);
+}
+// „links 1 Satz mehr“ (Flügelkraft): nur solange links in den Seitsprung-Tests unter 90 % von rechts liegt
+function leftExtra(w){
+  var on = null;
+  LEFT_EXTRA.tests.forEach(function(k){
+    var a = testsOf(k).filter(function(t){ var tw = weekOf(t.d); return tw != null && tw <= w; }); if (!a.length) return;
+    var t = a[a.length - 1], s = sym(t); if (s == null) return;
+    var weak = t.l < t.r && s < 90; on = on === null ? weak : (on || weak);
+  });
+  return on === null ? true : on;
+}
+function noteFor(n, w){
+  if (!LEFT_EXTRA || n.indexOf('[L]') < 0) return n;
+  var s = n.replace('[L]', leftExtra(w) ? LEFT_EXTRA.text : '');
+  return s.replace(/\s*·\s*$/, '').replace(/^\s*·\s*/, '').trim();
 }
 function doseFor(sid, x){ var ps = parseSid(sid); if (!ps) return null; var it = itemsOf(ps.w, ps.s).filter(function(i){ return i.x === x; })[0]; return it ? it.p : null; }
 function startISO(){ return S.profile.start || DEF.start; }
@@ -727,7 +755,7 @@ function planSuggest(x, p, ps){
   return out;
 }
 function suggest(x, p, sid){
-  if (SUGGEST === 'e1rm') return suggestE1(x, p, sid);
+  if (SUGGEST === 'e1rm' || SUGGEST === 'e1rm-plus') return suggestE1(x, p, sid);
   var ex = EX[x]; if (!ex || ex.t !== 'kg' || !p) return null;
   var ps = parseSid(sid); if (!ps) return null;
   var wk = WEEKS[ps.w] || {}, st = ex.st || 2.5, load, msg = '', ref = null, src;
@@ -790,13 +818,15 @@ function suggest(x, p, sid){
 function suggestE1(x, p, sid){
   var ex = EX[x]; if (!ex || ex.t !== 'kg' || !p || p.lo == null) return null;
   var ps = parseSid(sid); if (!ps) return null;
-  var sx = ex.src || x, src = strengthSrcE1(sx, ps.w); if (!src || src.est == null) return null;
+  var plus = SUGGEST === 'e1rm-plus', sx = ex.src || x, src = (plus ? strengthSrc : strengthSrcE1)(sx, ps.w); if (!src || src.est == null) return null;
   var tReps = (p.lo + (p.hi != null ? p.hi : p.lo)) / 2, tRir = p.rlo != null ? (p.rlo + (p.rhi != null ? p.rhi : p.rlo)) / 2 : 2;
   var load = src.est / (1 + (tReps + tRir) / 30), st = ex.st || 2.5;
   if (src.kind === 'log'){
     var pp = src.pp, lp = src.lp, e = lp.e;
     var topHit = pp && pp.hi != null && lp.sets.length >= (pp.sets || 1) && lp.sets.every(function(s){ return s[1] >= pp.hi; }) && (e.r[sx] == null || pp.rlo == null || e.r[sx] >= pp.rlo);
-    if (topHit && !ex.src && pp.hi === p.hi && pp.lo === p.lo) load = Math.max(load, src.lastKg + st);
+    // Flügelkraft: deutlich zu leicht – letzter Satz am oberen Ende und mindestens 2 Wiederholungen mehr Reserve als vorgegeben
+    var easy = plus && pp && pp.hi != null && pp.rlo != null && e.r[sx] != null && lp.sets[lp.sets.length - 1][1] >= pp.hi && e.r[sx] >= (pp.rhi != null ? pp.rhi : pp.rlo) + 2;
+    if ((topHit || easy) && !ex.src && pp.hi === p.hi && pp.lo === p.lo) load = Math.max(load, src.lastKg + st);
     load = Math.min(load, Math.max(src.lastKg * 1.1, src.lastKg + st));
   } else load = Math.min(load, src.t.v * 1.1);
   var hold = painHold(x);
@@ -1218,10 +1248,11 @@ function updateSaveBadge(){ var el = document.getElementById('fk-save'); if (el)
 function board(){
   var w = curWeek(), ph = w != null ? phaseOfWeek(w) : null, wt, et = '–', es = '', title, sub;
   if (w == null || w < 1){ wt = '0'; title = 'Start am ' + fmtWd(startISO()); sub = 'Vorbereitung'; }
-  else if (w > LAST_WEEK){ wt = '✓'; title = 'Block geschafft'; sub = 'Weiter mit dem nächsten Block'; }
+  else if (w > LAST_WEEK){ wt = '✓'; title = 'Block geschafft'; sub = OVER_SUB; }
   else { var wc = weekCount(w); wt = String(w); et = String(wc.done); es = '<small>/' + wc.tot + '</small>'; title = WEEKS[w].t; sub = PH_WORD + ' ' + ph.no + ' · ' + ph.name; }
   return '<header class="board">'
-    + '<div class="board-top"><span class="brand">' + esc(TITLE) + '</span>' + saveBadge() + '</div>'
+    + '<div class="board-top"><span class="brand">' + (LOGO_SVG && !/^TEST\b/.test(TITLE) ? '' : esc(TITLE)) + '</span>' + saveBadge() + '</div>'
+    + (LOGO_SVG ? '<div class="wordmark">' + LOGO_SVG + '</div>' : '')
     + '<div class="board-main">'
     + '<div class="cell"><span class="lbl">Woche</span><span class="val">' + esc(wt) + (w != null && w >= 1 && w <= MAIN_WEEKS ? '<small>/' + MAIN_WEEKS + '</small>' : '') + '</span></div>'
     + '<div class="cell"><span class="lbl">Einheiten</span><span class="val">' + esc(et) + es + '</span></div>'
@@ -1311,15 +1342,52 @@ function kneeAlert(){
   if (mx >= 3) return '<div class="banner warn">' + ICON.alert + '<div class="b-body"><b>Letzte Einheit: ' + what + ' gelb (' + mx + '/10)</b><p>Heute nicht steigern' + (HOLD ? ' – die Gewichtsvorschläge halten bei den betroffenen Übungen dein letztes Gewicht' : '') + '. Fühlt es sich beim Aufwärmen normal an, geht es normal weiter.</p></div></div>';
   return '';
 }
+// Ausdauer an eigenen Tagen (Flügelkraft): Übungen einer Einheit, deren Notiz mit einem Wochentag beginnt
+function endDays(w){
+  var ph = phaseOfWeek(w), out = {};
+  if (!END_DAYS || !ph || ph.sess.indexOf(END_DAYS.sess) < 0) return out;
+  itemsOf(w, END_DAYS.sess).forEach(function(it){
+    var n = it.n || '', wd = 0;
+    END_DAYS.days.forEach(function(d){ if (!wd && n.indexOf(d[0]) === 0) wd = d[1]; });
+    if (wd) (out[wd] = out[wd] || []).push(it);
+  });
+  return out;
+}
+function endStatus(w, items, log){
+  var e = (log || L())[sidOf(w, END_DAYS.sess)]; if (!e) return 'open';
+  var got = 0, tot = 0;
+  items.forEach(function(it){ var need = it.p && it.p.sets ? it.p.sets : 1; tot += need; got += Math.min(need, doneSets(e, it.x).length); });
+  return got >= tot ? 'done' : (got > 0 ? 'part' : 'open');
+}
+function endLabel(items, short){
+  var xs = items.map(function(it){ return it.x; }), l = null;
+  END_DAYS.labels.forEach(function(r){ if (!l && xs.indexOf(r[0]) >= 0) l = r; });
+  l = l || [''].concat(END_DAYS.sonst);
+  return short ? l[1] : l[2];
+}
+function endLine(w){
+  if (!END_DAYS) return '';
+  var ed = endDays(w), parts = [];
+  END_DAYS.days.forEach(function(d){ var its = ed[d[1]]; if (its) parts.push(d[0] + ': ' + endLabel(its, false) + ' (' + its.map(function(it){ return doseText(it.p, it.ex); }).join(' + ') + ')'); });
+  if (!parts.length) return '';
+  return '<p class="small muted"><b>' + esc(END_DAYS.head) + '</b> – ' + esc(parts.join(' · ')) + '. ' + esc(END_DAYS.tail) + '</p>';
+}
+// Handball zusätzlich (Flügelkraft): Profilfeld „hb“ (0 = nein)
+function hbAktiv(){ return !!HB_NOTE && S.profile.hb !== '0'; }
+function hbNote(){
+  if (!hbAktiv()) return '';
+  return '<div class="banner info">' + ICON.info + '<div class="b-body"><p><b>' + esc(HB_NOTE.head) + ':</b> ' + esc(HB_NOTE.text) + '</p></div></div>';
+}
 function weekStrip(w){
   var ph = phaseOfWeek(w); if (!ph) return '';
-  var ws = weekStart(w), log = L(), byDay = {};
+  var ws = weekStart(w), log = L(), byDay = {}, ed = endDays(w);
   ph.sess.forEach(function(s){ byDay[planDate(w, s)] = s; });
   var h = '<div class="wkstrip" role="list" aria-label="Woche ' + w + '">';
   for (var i = 0; i < 7; i++){
-    var d = addDays(ws, i), g = gameOn(d), s = g ? null : byDay[d], st = s ? sessStatus(w, s, log) : 'rest';
-    var cls = 'wkd' + (d === todayISO() ? ' today' : '') + (g ? ' game' : (st === 'done' ? ' done' : (st === 'part' ? ' part' : (st === 'rest' ? ' rest' : ''))));
-    h += '<div class="' + cls + '" role="listitem"' + (g ? ' title="' + esc('Spiel: ' + g.t) + '"' : '') + '><span class="d">' + WD[wdOf(d)] + '</span><span class="s">' + (g ? 'Spiel' : (s ? esc(s) : '·')) + '</span><span class="n">' + fmtShort(d).slice(0, 3) + '</span></div>';
+    var d = addDays(ws, i), g = gameOn(d), s = g ? null : byDay[d], en = !g && !s && ed[wdOf(d)] ? ed[wdOf(d)] : null;
+    var st = s ? sessStatus(w, s, log) : (en ? endStatus(w, en, log) : 'rest');
+    var cls = 'wkd' + (en ? ' end' : '') + (d === todayISO() ? ' today' : '') + (g ? ' game' : (st === 'done' ? ' done' : (st === 'part' ? ' part' : (st === 'rest' ? ' rest' : ''))));
+    h += '<div class="' + cls + '" role="listitem"' + (g ? ' title="' + esc('Spiel: ' + g.t) + '"' : (en ? ' title="' + esc(endLabel(en, false)) + '"' : '')) + '><span class="d">' + WD[wdOf(d)] + '</span><span class="s">' + (g ? 'Spiel' : (s ? esc(s) : (en ? esc(endLabel(en, true)) : '·'))) + '</span><span class="n">' + fmtShort(d).slice(0, 3) + '</span></div>';
   }
   return h + '</div>';
 }
@@ -1363,7 +1431,7 @@ function todayCard(){
   var head = '<p class="eyebrow">Woche ' + w + ' · ' + weekRange(w) + '</p>';
   if (n.weekDone){
     var nx = phaseOfWeek(w + 1);
-    return '<section class="card hl" aria-labelledby="h-today">' + head + '<h2 id="h-today">Woche geschafft</h2><p class="lead">Alle Einheiten dieser Woche sind erledigt. Erholung gehört zum Plan – Schlaf und Essen machen jetzt die Arbeit.</p>' + weekStrip(w)
+    return '<section class="card hl" aria-labelledby="h-today">' + head + '<h2 id="h-today">Woche geschafft</h2><p class="lead">Alle Einheiten dieser Woche sind erledigt. Erholung gehört zum Plan – Schlaf und Essen machen jetzt die Arbeit.</p>' + weekStrip(w) + endLine(w)
       + (nx ? '<p class="small muted">Nächste Woche: ' + esc(WEEKS[w + 1].t) + ' (' + esc(nx.name) + ').</p>' : '') + '</section>';
   }
   var s = n.s, m = SESS[s], id = sidOf(w, s), st = sessStatus(w, s), pd = planDate(w, s);
@@ -1375,7 +1443,7 @@ function todayCard(){
     + '<p class="small muted"><b>Diese Woche:</b> ' + esc(wk.note) + '</p>' + gameLine(w)
     + testHint(w, s)
     + sessGameBanner(w, s, L()[id] || null)
-    + weekStrip(w)
+    + weekStrip(w) + endLine(w)
     + '<div class="row"><button type="button" class="btn pri" data-act="open-sess" data-sid="' + id + '">' + ICON.play + (st === 'part' ? 'Weitermachen' : 'Einheit öffnen') + '</button><button type="button" class="btn" data-act="plan-week" data-w="' + w + '">' + ICON.plan + 'Ganze Woche</button></div>'
     + '</section>';
 }
@@ -1398,7 +1466,7 @@ function rmEinheiten(){
 function testHint(w, s){
   var h = '';
   if (s === TEST_SESS && WEEKS[w] && WEEKS[w].test){
-    h += '<div class="banner info">' + ICON.gauge + '<div class="b-body"><b>Diese Einheit mit ' + esc(JUMP_HEAD) + '</b><p>Nach dem Aufwärmen testen und die Werte im Tab „Tests“ eintragen – in der Einheit führt dich der Knopf „Testwerte jetzt eintragen“ hin.</p></div></div>';
+    h += '<div class="banner info">' + ICON.gauge + '<div class="b-body"><b>Diese Einheit mit ' + esc(JUMP_HEAD) + '</b><p>Nach dem Aufwärmen testen und die Werte im Tab „Tests“ eintragen – in der Einheit führt dich der Knopf „Testwerte jetzt eintragen“ hin.' + (TEST_HINT_EXTRA ? ' ' + esc(TEST_HINT_EXTRA) : '') + '</p></div></div>';
   }
   if (RM_WEEK[w]){
     var lifts = itemsOf(w, s).filter(function(it){ return RM_BY_X[it.x]; }).map(function(it){ return it.ex.n; });
@@ -1472,7 +1540,7 @@ function stairCard(){
     rows += '<li class="' + cls + '"><span class="node">' + (cls === 'done' ? ICON.check : ph.no) + '</span><div><div class="s-t">' + PH_WORD + ' ' + ph.no + ': ' + esc(ph.name) + '</div><div class="s-n">' + esc(ph.goal) + ' <i>Dafür nötig: ' + esc(ph.need) + '.</i></div><div class="s-m">' + phaseRange(ph) + ' · ' + cnt + ' von ' + tot + ' Einheiten</div></div></li>';
   }
   rows += '<li class="done"><span class="node">' + ICON.start + '</span><div><div class="s-t">Start</div><div class="s-m">' + fmtWd(startISO()) + startISO().slice(0, 4) + '</div></div></li>';
-  return '<section class="card" aria-labelledby="h-stair"><p class="eyebrow">Vom Ziel her gedacht</p><h2 id="h-stair">Der Weg bis Weihnachten</h2>'
+  return '<section class="card" aria-labelledby="h-stair"><p class="eyebrow">Vom Ziel her gedacht</p><h2 id="h-stair">' + esc(STAIR_HEAD) + '</h2>'
     + '<p>' + esc(STAIR_TEXT) + '</p>'
     + '<ol class="stair">' + rows + '</ol>'
     + proBox(STAIR_PRO) + '</section>';
@@ -1526,7 +1594,7 @@ function viewStart(){
     if (SELF) return selfWelcome() + morningCard() + kneeAlert() + todayCard() + selfCard() + (isPro() ? statusCard() + importCard() : '') + stairCard() + profileCard();
     return importCard() + statusCard() + peakCard() + todayCard() + stairCard() + profileCard();
   }
-  return welcomeCard() + msgCard() + morningCard() + kneeAlert() + peakCard() + todayCard() + sendCard() + stairCard();
+  return welcomeCard() + msgCard() + morningCard() + kneeAlert() + peakCard() + todayCard() + hbNote() + sendCard() + stairCard();
 }
 
 // ---------- Plan ----------
@@ -1593,7 +1661,7 @@ function weekCard(w){
   }).join('');
   return '<section class="card" aria-labelledby="h-wk"><p class="eyebrow">Woche ' + w + ' · ' + weekRange(w) + '</p><h2 id="h-wk">' + esc(wk.t) + '</h2>'
     + '<div class="row">' + phChip(ph) + (wk.test ? chip('acc', esc(wk.test) + ' am ' + fmtWd(planDate(w, TEST_SESS))) : '') + '</div>'
-    + '<p>' + esc(wk.note) + '</p>' + gameLine(w) + weekPicker(w) + '<ul class="slist">' + list + '</ul></section>';
+    + '<p>' + esc(wk.note) + '</p>' + gameLine(w) + weekPicker(w) + '<ul class="slist">' + list + '</ul>' + endLine(w) + '</section>';
 }
 function progCard(){
   return '<section class="card" aria-labelledby="h-prog"><p class="eyebrow">Progression</p><h2 id="h-prog">' + esc(PROG.head || 'So steigt das Gewicht – langsam und sicher') + '</h2>'
@@ -1692,13 +1760,18 @@ function rmSteps(wk, r){
     + '<li>' + esc(RMSTEP_PAIN) + '</li>'
     + '<li>Eintragen – danach geht die Übung mit dem berechneten Gewicht weiter.</li></ol>';
 }
+function rmHint(t, wk){
+  var why = t.q >= 3 ? 'Reserve ' + t.q + ' ist für den Test zu viel' : ((t.n < wk.lo - 2 || t.n > wk.hi + 2) ? t.n + ' Wiederholungen liegen außerhalb von ' + wk.lo + '–' + wk.hi : '');
+  if (!why) return '';
+  return '<p class="small rm-hint">' + esc(why + ' – so wird der Schätzwert ungenau.' + (canLog() ? ' Bist du noch frisch: 3 Minuten Pause, Gewicht anpassen, noch ein Testsatz und über „Test ändern“ eintragen.' : '')) + '</p>';
+}
 function rmBox(it, sid){
   var ps = parseSid(sid), wk = RM_WEEK[ps.w], r = RM_BY_X[it.x]; if (!wk || !r) return '';
   var t = rmTestFor(r.k, ps.w), ed = canLog(), editing = UI.rmEdit === r.k;
   var h = '<div class="rmbox' + (t && !editing ? ' done' : '') + '"><div class="rm-h"><b>' + (t && !editing ? 'Kraft-Test erledigt' : 'Zuerst: Kraft-Test') + '</b><span>' + wk.lo + '–' + wk.hi + ' Wdh. bis Reserve 1</span></div>';
   if (t && !editing){
     var est = rmE1(t);
-    h += '<p class="rm-res">' + esc(fmtNum(t.v) + ' kg' + (r.hand ? ' je Hand' : '') + ' × ' + t.n + ' · Reserve ' + t.q) + ' → Kraft-Schätzwert <b>' + esc(fmtNum(Math.round(est * 2) / 2)) + ' kg</b>' + (r.rel && S.profile.bw ? ' · ' + esc(relTxt(est)) : '') + '</p>';
+    h += '<p class="rm-res">' + esc(fmtNum(t.v) + ' kg' + (r.hand ? ' je Hand' : '') + ' × ' + t.n + ' · Reserve ' + t.q) + ' → Kraft-Schätzwert <b>' + esc(fmtNum(Math.round(est * 2) / 2)) + ' kg</b>' + (r.rel && S.profile.bw ? ' · ' + esc(relTxt(est)) : '') + '</p>' + (RM_HINT ? rmHint(t, wk) : '');
     if (ed) h += '<div><button type="button" class="linkbtn small" data-act="rm-edit" data-k="' + r.k + '">Test ändern</button></div>';
     return h + '</div>';
   }
@@ -1728,7 +1801,7 @@ function howHtml(ex){
   return '<p>' + esc(ex.how) + '</p>';
 }
 function howBox(ex, isTest){
-  return '<details class="exd2"><summary>So geht’s</summary><div class="how">' + howHtml(ex) + (ex.cue ? '<p><b>Achte auf:</b> ' + esc(ex.cue) + '</p>' : '') + (ex.knee ? '<p class="kneehint"><b>Bei Beschwerden:</b> ' + esc(ex.knee) + '</p>' : '') + (ex.alt ? '<p><b>Ohne Gerät / Alternative:</b> ' + esc(ex.alt) + '</p>' : '')
+  return '<details class="exd2"><summary>So geht’s</summary><div class="how">' + howHtml(ex) + (ex.cue ? '<p><b>Achte auf:</b> ' + esc(ex.cue) + '</p>' : '') + (ex.knee ? '<p class="kneehint"><b>' + esc(EX_HINT_LBL) + ':</b> ' + esc(ex.knee) + '</p>' : '') + (ex.alt ? '<p><b>Ohne Gerät / Alternative:</b> ' + esc(ex.alt) + '</p>' : '')
     + (isTest ? '<p><button type="button" class="btn sm" data-act="goto-tests">' + ICON.gauge + 'Zu den Tests</button></p>' : '') + '</div></details>';
 }
 // ---------- Zusätzlich gemacht: eigene Übungen am Ende der Einheit ----------
@@ -1851,6 +1924,7 @@ function viewSession(sid){
     + '<div class="row">' + phChip(ph) + chip('acc', 'ca. ' + m.min + ' min') + '</div>'
     + '<p class="small"><b>' + esc(wk.t) + ':</b> ' + esc(wk.note) + '</p>'
     + (ed ? '<p class="small muted">Tut eine Übung weh oder passt nicht: nicht durchziehen, sondern abändern – wie, steht bei der Übung unter „So geht’s“. Was du geändert hast, kommt in die Notiz – Übungen zusätzlich zum Plan ganz unten unter „Zusätzlich gemacht“.</p>' : '')
+    + (ed && SESS_HINT[s] ? '<p class="small muted">' + esc(SESS_HINT[s].t) + (SESS_HINT[s].hb && hbAktiv() ? esc(SESS_HINT[s].hb) : '') + '</p>' : '')
     + (ORDER_NOTE ? '<p class="small muted"><b>Reihenfolge:</b> ' + esc(ORDER_NOTE) + '</p>' : '')
     + sessGameBanner(w, s, e) + sessPauseBanner(w, s, e)
     + (MODE === 'writer' && !SELF ? '<p class="small muted">Hier siehst du, was ' + esc(who()) + ' eingetragen hat (nach dem Übernehmen).</p>' : '')
@@ -2094,7 +2168,7 @@ function libCard(){
   var groups = {}, order = [];
   Object.keys(EX).forEach(function(id){ var ex = EX[id]; if (id === 'tests') return; if (!groups[ex.g]){ groups[ex.g] = []; order.push(ex.g); } groups[ex.g].push(ex); });
   return '<section class="card" aria-labelledby="h-lib"><p class="eyebrow">Übungen</p><h2 id="h-lib">Alle Übungen</h2><div class="lib">' + order.map(function(g){
-    return '<div class="libgrp">' + esc(g) + '</div>' + groups[g].map(function(ex){ return '<details><summary>' + esc(ex.n) + '</summary><div class="how">' + howHtml(ex) + (ex.cue ? '<p><b>Achte auf:</b> ' + esc(ex.cue) + '</p>' : '') + (ex.knee ? '<p class="kneehint"><b>Bei Beschwerden:</b> ' + esc(ex.knee) + '</p>' : '') + (ex.alt ? '<p><b>Alternative:</b> ' + esc(ex.alt) + '</p>' : '') + '</div></details>'; }).join('');
+    return '<div class="libgrp">' + esc(g) + '</div>' + groups[g].map(function(ex){ return '<details><summary>' + esc(ex.n) + '</summary><div class="how">' + howHtml(ex) + (ex.cue ? '<p><b>Achte auf:</b> ' + esc(ex.cue) + '</p>' : '') + (ex.knee ? '<p class="kneehint"><b>' + esc(EX_HINT_LBL) + ':</b> ' + esc(ex.knee) + '</p>' : '') + (ex.alt ? '<p><b>Alternative:</b> ' + esc(ex.alt) + '</p>' : '') + '</div></details>'; }).join('');
   }).join('') + '</div></section>';
 }
 function dataCard(){
@@ -2647,8 +2721,19 @@ function onKey(ev){
 
 // ---------- Start ----------
 var STARTED = false;
+// Farbwelt des Plans: überschreibt die Farben von Training Olli (nur Farbwerte, nichts anderes)
+function themaAnwenden(){
+  if (!THEME) return;
+  function block(o){ return Object.keys(o || {}).filter(function(k){ return /^--[a-z0-9-]+$/.test(k) && /^[#a-z0-9(),.%\s-]+$/i.test(String(o[k])); }).map(function(k){ return k + ':' + o[k]; }).join(';'); }
+  var st = document.getElementById('ogt-thema') || document.createElement('style');
+  st.id = 'ogt-thema';
+  st.textContent = ':root{' + block(THEME.light) + '}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){' + block(THEME.dark) + '}}:root[data-theme="dark"]{' + block(THEME.dark) + '}';
+  document.head.appendChild(st);
+  if (THEME.deko && /^[a-z0-9]+$/.test(THEME.deko)) document.body.classList.add('deko-' + THEME.deko);
+}
 function start(hot){
   if (STARTED) return; STARTED = true;
+  themaAnwenden();
   var st = (hot && hot.ui) || ssGet('fk-ui', null);
   if (st && typeof st === 'object'){
     if (st.tab) UI.tab = st.tab;
