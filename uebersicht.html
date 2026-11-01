@@ -137,6 +137,8 @@ function planKarte(k, d){
     if ((e.d || '') < g) return;
     if (e.k >= 5) hinweise.push(plan.schmerz + ' ' + e.k + '/10 am ' + fmt(e.d) + (e.ks ? ' (' + (plan.seiten[e.ks] || e.ks) + ')' : ''));
     if (e.o >= 5) hinweise.push(plan.schmerz + ' am Morgen danach ' + e.o + '/10 (' + fmt(e.d) + ')');
+    if (plan.ruecken && e.rb >= 5) hinweise.push(plan.ruecken + ' ' + e.rb + '/10 am ' + fmt(e.d));
+    if (plan.ruecken && e.ro >= 5) hinweise.push(plan.ruecken + ' am Morgen danach ' + e.ro + '/10 (' + fmt(e.d) + ')');
     if (e.sh >= 5) hinweise.push(plan.arm + ' ' + e.sh + '/10 am ' + fmt(e.d));
   });
   var h = '<section class="karte" data-plan="' + esc(k) + '"><h2>' + esc(plan.titel) + '</h2><div class="klein">Kennung ' + esc(k)
@@ -151,11 +153,13 @@ function planKarte(k, d){
   if (!log.length) h += '<p class="leer">Noch keine Einheiten übermittelt.</p>';
   else {
     h += '<div class="tabelle"><table><thead><tr><th>Datum</th><th>Einheit</th><th>Status</th><th>Min</th><th>Frische</th><th>Anstrengung</th><th>'
-      + esc(plan.schmerz) + '</th><th>morgens danach</th><th>' + esc(plan.arm) + '</th><th>Notiz und Sätze</th></tr></thead><tbody>';
+      + esc(plan.schmerz) + '</th><th>morgens danach</th>' + (plan.ruecken ? '<th>' + esc(plan.ruecken) + '</th><th>morgens danach</th>' : '')
+      + '<th>' + esc(plan.arm) + '</th><th>Notiz und Sätze</th></tr></thead><tbody>';
     log.forEach(function(e){
       h += '<tr><td class="w">' + fmt(e.d) + '</td><td>' + esc(einheitName(e, plan)) + '</td><td class="w">' + (e.f ? 'fertig ✓' : 'begonnen')
         + '</td><td>' + (e.m != null ? esc(e.m) : '–') + '</td><td>' + wert(e.fr, false) + '</td><td>' + wert(e.e, false) + '</td><td class="w">' + wert(e.k, true)
-        + (e.ks ? ' ' + esc(plan.seiten[e.ks] || e.ks) : '') + '</td><td>' + wert(e.o, true) + '</td><td>' + wert(e.sh, true) + '</td><td>'
+        + (e.ks ? ' ' + esc(plan.seiten[e.ks] || e.ks) : '') + '</td><td>' + wert(e.o, true)
+        + (plan.ruecken ? '</td><td>' + wert(e.rb, true) + '</td><td>' + wert(e.ro, true) : '') + '</td><td>' + wert(e.sh, true) + '</td><td>'
         + (e.n ? '„' + esc(e.n) + '“' : '') + '<details><summary>Sätze</summary>' + saetze(e, plan) + '</details></td></tr>';
     });
     h += '</tbody></table></div>';
