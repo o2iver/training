@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version 2608f86587
+/*! O.G. Trainings-App · Grundgerüst · Version a614592030
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -381,6 +381,7 @@ var BACK_LBL = I.BACK_LBL || '';       // dritter Beschwerde-Bereich (z. B. Rüc
 var BACK_REQ = I.BACK_REQ || 'Bitte den Wert für ' + BACK_LBL + ' antippen – 0, wenn alles ruhig war.';
 var RED_TEXT = I.RED_TEXT || 'Heute keine Sprünge';   // Beschwerde-Ampel rot: was heute wegfällt
 var BACK_RED = I.BACK_RED || '';       // … und was zusätzlich wegfällt, wenn der dritte Bereich rot ist
+var ARM_RED = I.ARM_RED || '';         // was wegfällt, wenn der Arm-Bereich (z. B. Schulter) rot ist – ohne „Heute“; leer = wie bisher RED_TEXT
 var HOLD = I.HOLD || null;             // { back|hip|arm: { Übung: 1 } } – Gewichtsvorschlag halten, wenn sich das bei der letzten Einheit mit 3 oder mehr gemeldet hat
 var ORIENT = I.ORIENT || null;         // { head, text, refs, tail } – Orientierungswert (SQ_REF × Körpergewicht) im Kraft-Test – fehlt = aus
 var TICK_LBL = I.TICK_LBL || 'Sprünge & Co.';
@@ -1339,7 +1340,13 @@ function kneeAlert(){
   var age = daysBetween(entryDate(e), todayISO()); if (age == null || age > 4) return '';
   var hp = Math.max(e.k == null ? -1 : e.k, e.o == null ? -1 : e.o), el = e.sh == null ? -1 : e.sh, bk = BACK_LBL ? Math.max(e.rb == null ? -1 : e.rb, e.ro == null ? -1 : e.ro) : -1, mx = Math.max(hp, bk, el);
   var what = BACK_LBL ? [hp === mx ? PAIN_LBL : '', bk === mx ? BACK_LBL : '', el === mx ? ARM_LBL : ''].filter(Boolean).join(' und ') : (hp >= el ? PAIN_LBL : ARM_LBL);
-  if (mx >= 5) return '<div class="banner bad">' + ICON.alert + '<div class="b-body"><b>Letzte Einheit: ' + what + ' rot (' + mx + '/10)</b><p>' + esc(RED_TEXT) + (bk === mx ? esc(BACK_RED) : '') + ' und die betroffenen Übungen abändern (Tab „Infos“)' + (SELF ? '.' : ' – und ' + esc(therDat()) + ' Bescheid geben.') + '</p></div></div>';
+  // Mit ARM_RED: alle roten Bereiche nennen und je Bereich sagen, was wegfällt – ist nur der Arm rot, ohne „keine Sprünge“
+  var armRot = el >= 5, sonstRot = hp >= 5 || bk >= 5, rotText = RED_TEXT + (bk === mx ? BACK_RED : '');
+  if (ARM_RED && mx >= 5){
+    what = [hp >= 5 ? PAIN_LBL : '', bk >= 5 ? BACK_LBL : '', armRot ? ARM_LBL : ''].filter(Boolean).join(' und ');
+    rotText = [sonstRot ? RED_TEXT + (bk >= 5 ? BACK_RED : '') : '', armRot ? (sonstRot ? '' : 'Heute ') + ARM_RED : ''].filter(Boolean).join(', ');
+  }
+  if (mx >= 5) return '<div class="banner bad">' + ICON.alert + '<div class="b-body"><b>Letzte Einheit: ' + what + ' rot (' + mx + '/10)</b><p>' + esc(rotText) + ' und die betroffenen Übungen abändern (Tab „Infos“)' + (SELF ? '.' : ' – und ' + esc(therDat()) + ' Bescheid geben.') + '</p></div></div>';
   if (mx >= 3) return '<div class="banner warn">' + ICON.alert + '<div class="b-body"><b>Letzte Einheit: ' + what + ' gelb (' + mx + '/10)</b><p>Heute nicht steigern' + (HOLD ? ' – die Gewichtsvorschläge halten bei den betroffenen Übungen dein letztes Gewicht' : '') + '. Fühlt es sich beim Aufwärmen normal an, geht es normal weiter.</p></div></div>';
   return '';
 }
