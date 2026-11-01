@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version d87068f3ad
+/*! O.G. Trainings-App · Grundgerüst · Version c8a7c59095
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -1314,7 +1314,7 @@ function testHint(w, s){
   return h;
 }
 function sendCard(){
-  if (MODE !== 'reader') return '';
+  if (MODE !== 'reader' || (RM && SELF)) return '';   // eigener Plan mit automatischer Rückmeldung: kein WhatsApp an sich selbst
   var pd = pending(), nl = pd.l.length, nt = pd.t.length, last = lsGet(LK('sent'), ''), parts = [];
   if (nl) parts.push(nl + (nl === 1 ? ' Einheit' : ' Einheiten'));
   if (nt) parts.push(nt + (nt === 1 ? ' Testwert' : ' Testwerte'));
