@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version 96d72a1752
+/*! O.G. Trainings-App · Grundgerüst · Version d87068f3ad
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -100,16 +100,18 @@ function rmVerpacken(objekt){
 function rmLesen(k, d){ try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
 function rmSchreiben(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 function rmHeute(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
-// Noch nicht gesendet: fertige Einheiten und Einheiten von gestern oder früher, jeweils in ihrer neuesten Fassung
+// Noch nicht gesendet: fertige Einheiten und Einheiten von gestern oder früher, Tests und Extra-Trainings,
+// jeweils in ihrer neuesten Fassung
 function rmOffen(){
   var id = RM_STATUS.id, log = rmLesen('fk:' + id + ':log', {}), tests = rmLesen('fk:' + id + ':tests', []);
-  var ges = rmLesen('ogt:gesendet:' + id, {}), heute = rmHeute(), l = [], t = [];
+  var ges = rmLesen('ogt:gesendet:' + id, {}), heute = rmHeute(), l = [], t = [], ex = [];
   if (log && typeof log === 'object') Object.keys(log).forEach(function(k){
     var e = log[k];
     if (e && e.s && (e.f || (e.d && e.d < heute)) && ges['l:' + e.s] !== e.t) l.push(e);
   });
   (Array.isArray(tests) ? tests : []).forEach(function(x){ if (x && x.id && ges['t:' + x.id] !== x.t) t.push(x); });
-  return { l: l, t: t, ges: ges };
+  exListe().forEach(function(x){ if (x && x.id && ges['x:' + x.id] !== x.t) ex.push(x); });
+  return { l: l, t: t, ex: ex, ges: ges };
 }
 function rmHinweis(text){
   var el = document.getElementById('ogt-rm');
@@ -120,9 +122,9 @@ function rmHinweis(text){
 function rmSenden(){
   if (!RM || !RM_STATUS.id || RM_STATUS.laeuft || !window.crypto || !crypto.subtle || !window.fetch) return;
   if (navigator.onLine === false) return;
-  var o = rmOffen(); if (!o.l.length && !o.t.length) return;
+  var o = rmOffen(); if (!o.l.length && !o.t.length && !o.ex.length) return;
   RM_STATUS.laeuft = true;
-  rmVerpacken({ v: 1, i: RM_STATUS.id, gesendet: new Date().toISOString(), l: o.l, t: o.t }).then(function(code){
+  rmVerpacken({ v: 1, i: RM_STATUS.id, gesendet: new Date().toISOString(), l: o.l, t: o.t, extra: o.ex }).then(function(code){
     if (RM.einwurf){
       // Eigener Empfang bei Cloudflare. text/plain hält die Anfrage „einfach“ (ohne Vorabfrage),
       // damit sie auch beim Schließen der App noch rausgeht (keepalive).
@@ -136,6 +138,7 @@ function rmSenden(){
     if (!r.ok) throw new Error('HTTP ' + r.status);
     o.l.forEach(function(e){ o.ges['l:' + e.s] = e.t; });
     o.t.forEach(function(x){ o.ges['t:' + x.id] = x.t; });
+    o.ex.forEach(function(x){ o.ges['x:' + x.id] = x.t; });
     rmSchreiben('ogt:gesendet:' + RM_STATUS.id, o.ges);
     rmHinweis(RM_STATUS.self ? 'Gesendet ✓ – kommt in deiner Übersicht an.' : 'Gesendet ✓ – ' + RM_STATUS.ther + ' sieht deine Einheit.');
   }).catch(function(){
@@ -156,12 +159,90 @@ function rmStart(id, C){
     var b = ev.target && ev.target.closest ? ev.target.closest('[data-act="finish"]') : null;
     if (b) setTimeout(rmSenden, 1500);
   });
+  exStart();
 }
 // Wohin die App automatisch sendet – für die Hinweistexte
 function rmWohin(self, ther){ return self ? 'in deine Übersicht' : 'an ' + ther; }
 function rmBanner(self, ther){
   if (!RM) return 'Deine Einträge bleiben auf diesem Gerät' + (self ? '.' : ' – schick sie mit „Per WhatsApp schicken“ an ' + ther + '.');
   return 'Deine Einträge bleiben auf diesem Gerät und gehen nach jeder Einheit verschlüsselt ' + rmWohin(self, ther) + '.';
+}
+
+// ===================== Extra-Training: freier Eintrag außerhalb des Plans =====================
+// Datum, Freitext und Dauer für alles, was nicht im Plan steht. Liegt auf dem Gerät unter ogt:extra:<kennung>
+// (getrennt vom Protokoll des Grundgerüsts) und geht mit der Rückmeldung verschlüsselt raus (Feld „extra“).
+// Löschen schickt eine Löschmarke ohne Text, damit der Eintrag auch aus der Übersicht verschwindet.
+function exListe(){ var l = rmLesen('ogt:extra:' + RM_STATUS.id, []); return Array.isArray(l) ? l : []; }
+function exSchreiben(l){ try { localStorage.setItem('ogt:extra:' + RM_STATUS.id, JSON.stringify(l)); return true; } catch (e) { return false; } }
+function exDatum(d){ var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][new Date(+m[1], +m[2] - 1, +m[3]).getDay()] + ' ' + m[3] + '.' + m[2] + '.' : String(d || ''); }
+function exListeHtml(){
+  var l = exListe().filter(function(x){ return x && !x.geloescht; })
+    .sort(function(a, b){ return a.d === b.d ? b.t - a.t : (a.d < b.d ? 1 : -1); }).slice(0, 5);
+  if (!l.length) return '';
+  return '<h3>Zuletzt eingetragen</h3><ul>' + l.map(function(x){
+    return '<li><div><b>' + escL(exDatum(x.d)) + (x.m ? ' · ' + escL(x.m) + ' min' : '') + '</b><p>' + escL(x.n) + '</p></div>'
+      + '<button type="button" data-ex="loeschen" data-id="' + escL(x.id) + '">Löschen</button></li>';
+  }).join('') + '</ul>';
+}
+function exZu(){ var h = document.getElementById('ogt-extra'); if (h) h.remove(); }
+function exFenster(){
+  exZu();
+  var heute = rmHeute(), h = document.createElement('div');
+  h.id = 'ogt-extra'; h.className = 'ogt-extra-hinter';
+  h.innerHTML = '<div class="ogt-extra" role="dialog" aria-modal="true" aria-labelledby="ogt-extra-titel">'
+    + '<h2 id="ogt-extra-titel">Extra-Training</h2>'
+    + '<p class="ogt-extra-klein">Für alles außerhalb des Plans. Geht verschlüsselt ' + escL(rmWohin(RM_STATUS.self, RM_STATUS.ther)) + '.</p>'
+    + '<label for="ogt-extra-d">Datum</label><input id="ogt-extra-d" type="date" value="' + heute + '" max="' + heute + '">'
+    + '<label for="ogt-extra-n">Was hast du gemacht?</label>'
+    + '<textarea id="ogt-extra-n" rows="5" maxlength="1000" placeholder="z. B. 20 min Rad, 3 × 12 Ausfallschritte, Dehnen"></textarea>'
+    + '<label for="ogt-extra-m">Dauer in Minuten <span class="ogt-extra-klein">(freiwillig)</span></label>'
+    + '<input id="ogt-extra-m" type="text" inputmode="numeric" autocomplete="off">'
+    + '<p id="ogt-extra-fehler" role="alert"></p>'
+    + '<div class="ogt-extra-reihe"><button type="button" class="ogt-extra-pri" data-ex="speichern">Training speichern</button>'
+    + '<button type="button" data-ex="zu">Abbrechen</button></div>'
+    + '<div id="ogt-extra-liste">' + exListeHtml() + '</div></div>';
+  document.body.appendChild(h);
+  h.addEventListener('click', exKlick);
+  h.addEventListener('keydown', function(ev){ if (ev.key === 'Escape') exZu(); });
+  var n = document.getElementById('ogt-extra-n'); if (n) n.focus();
+}
+function exKlick(ev){
+  var b = ev.target && ev.target.closest ? ev.target.closest('[data-ex]') : null;
+  if (!b) return;
+  var art = b.getAttribute('data-ex');
+  if (art === 'zu') exZu();
+  else if (art === 'speichern') exNeu();
+  else if (art === 'loeschen' && window.confirm('Diesen Eintrag löschen?')) exLoeschen(b.getAttribute('data-id'));
+}
+function exNeu(){
+  var d = document.getElementById('ogt-extra-d').value, n = document.getElementById('ogt-extra-n').value.trim();
+  var mText = document.getElementById('ogt-extra-m').value.trim(), m = /^\d{1,3}$/.test(mText) ? +mText : null;
+  var fehlerText = !/^\d{4}-\d{2}-\d{2}$/.test(d) || d > rmHeute() ? 'Bitte ein gültiges Datum wählen (nicht in der Zukunft).'
+    : !n ? 'Bitte kurz eintragen, was du gemacht hast.'
+    : mText && !(m >= 1 && m <= 600) ? 'Dauer bitte als ganze Minuten eintragen – oder leer lassen.' : '';
+  if (fehlerText){ document.getElementById('ogt-extra-fehler').textContent = fehlerText; return; }
+  var l = exListe();
+  l.push({ id: 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), d: d, m: m, n: n.slice(0, 1000), t: Date.now() });
+  if (!exSchreiben(l)){ document.getElementById('ogt-extra-fehler').textContent = 'Speichern hat nicht geklappt. Bitte noch einmal versuchen.'; return; }
+  exZu();
+  var k = document.getElementById('ogt-extra-knopf'); if (k) k.focus();
+  rmHinweis('Extra-Training gespeichert ✓');
+  setTimeout(rmSenden, 1200);
+}
+function exLoeschen(id){
+  var l = exListe();
+  l.forEach(function(x){ if (x && x.id === id){ x.geloescht = 1; x.n = ''; x.m = null; x.t = Date.now(); } });
+  exSchreiben(l);
+  var box = document.getElementById('ogt-extra-liste'); if (box) box.innerHTML = exListeHtml();
+  setTimeout(rmSenden, 800);
+}
+function exStart(){
+  if (!RM || document.getElementById('ogt-extra-knopf')) return;
+  var k = document.createElement('button');
+  k.type = 'button'; k.id = 'ogt-extra-knopf'; k.className = 'ogt-extra-knopf'; k.textContent = '＋ Extra-Training';
+  k.addEventListener('click', exFenster);
+  document.body.appendChild(k);
+  document.body.classList.add('ogt-mit-extra');
 }
 
 function starten(){
