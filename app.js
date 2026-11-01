@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version eec7b6b016
+/*! O.G. Trainings-App · Grundgerüst · Version 96d72a1752
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -67,10 +67,11 @@ var MELDUNG = {
 
 // ===================== Rückmeldung: Einträge automatisch an Olli =====================
 // Fertige Einheiten werden auf dem Gerät verschlüsselt (Einmal-Schlüssel ECDH P-256 + AES-GCM wie bei
-// den Fragebögen, aber mit eigenem Schlüsselpaar) und über EmailJS ins Leistungssport-Postfach
-// geschickt. EmailJS und Postfach sehen nur Zeichensalat; lesen kann es nur Ollis Übersicht am PC.
+// den Fragebögen, aber mit eigenem Schlüsselpaar) und an den eigenen Empfang bei Cloudflare geschickt
+// (RM.einwurf; ohne ihn wie früher über EmailJS ins Leistungssport-Postfach). Unterwegs sieht jeder
+// nur Zeichensalat; lesen kann es nur Ollis Übersicht.
 // Die Einträge bleiben zusätzlich auf dem Gerät.
-var RM = {"schluessel":{"kty":"EC","crv":"P-256","x":"6mOTJ7vBuEgtp526G71SoXOjfy4qloVX3_zDNtJYKt0","y":"XbhgbaEzHLfsoZVvbKcS5RM6GAWSnu7Y6Pp_2sg2W4k"},"adresse":"https://api.emailjs.com/api/v1.0/email/send","service":"service_cx4ksx5","template":"template_xn5hexf","user":"u2K7dzzEvM0bp4pln","betreff":"Trainings-App Rückmeldung"};
+var RM = {"schluessel":{"kty":"EC","crv":"P-256","x":"6mOTJ7vBuEgtp526G71SoXOjfy4qloVX3_zDNtJYKt0","y":"XbhgbaEzHLfsoZVvbKcS5RM6GAWSnu7Y6Pp_2sg2W4k"},"einwurf":"https://og-training.og-physiotherapie.workers.dev/einwurf"};
 var RM_TEST = /[?&]ogt-test=1(&|$)/.test(location.search);   // nur für tests/run_tests.py: schickt an den Testserver
 var RM_STATUS = { laeuft: false, id: '', self: false, ther: 'Olli' };
 var RM_ECDH = { name: 'ECDH', namedCurve: 'P-256' };
@@ -122,7 +123,13 @@ function rmSenden(){
   var o = rmOffen(); if (!o.l.length && !o.t.length) return;
   RM_STATUS.laeuft = true;
   rmVerpacken({ v: 1, i: RM_STATUS.id, gesendet: new Date().toISOString(), l: o.l, t: o.t }).then(function(code){
-    return fetch(RM_TEST ? 'emailjs-test' : RM.adresse, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
+    if (RM.einwurf){
+      // Eigener Empfang bei Cloudflare. text/plain hält die Anfrage „einfach“ (ohne Vorabfrage),
+      // damit sie auch beim Schließen der App noch rausgeht (keepalive).
+      return fetch(RM_TEST ? 'einwurf-test' : RM.einwurf, { method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ code: code }) });
+    }
+    return fetch(RM_TEST ? 'emailjs-test' : RM.adresse, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ service_id: RM.service, template_id: RM.template, user_id: RM.user,
         template_params: { subject: RM.betreff, message: 'Trainings-App · verschlüsselte Rückmeldung\n' + code } }) });
   }).then(function(r){
@@ -150,9 +157,11 @@ function rmStart(id, C){
     if (b) setTimeout(rmSenden, 1500);
   });
 }
+// Wohin die App automatisch sendet – für die Hinweistexte
+function rmWohin(self, ther){ return self ? 'in deine Übersicht' : 'an ' + ther; }
 function rmBanner(self, ther){
   if (!RM) return 'Deine Einträge bleiben auf diesem Gerät' + (self ? '.' : ' – schick sie mit „Per WhatsApp schicken“ an ' + ther + '.');
-  return 'Deine Einträge bleiben auf diesem Gerät und gehen nach jeder Einheit verschlüsselt ' + (self ? 'in deine Übersicht.' : 'an ' + ther + '.');
+  return 'Deine Einträge bleiben auf diesem Gerät und gehen nach jeder Einheit verschlüsselt ' + rmWohin(self, ther) + '.';
 }
 
 function starten(){
@@ -1085,15 +1094,16 @@ function welcomeCard(){
     + '<ol class="steps">'
     + '<li><b>Immer gleich öffnen:</b> über den Link von ' + esc(t) + ' bzw. dein Lesezeichen – immer im selben Browser (zum Beispiel Safari oder Chrome), nicht im privaten Modus. Deine Einträge werden auf diesem Handy gespeichert.</li>'
     + '<li><b>Im Training:</b> „Einheit öffnen“, pro Satz Gewicht und Wiederholungen eintragen und den Haken tippen. ' + esc(WEL_TRAIN) + '</li>'
-    + '<li><b>Vor und nach dem Training:</b> Vorher antippen, wie frisch du dich fühlst – die Seite sagt dir, wie viel du heute machst. Nachher Anstrengung, ' + esc(WEL_PAIN) + ' antippen und „Einheit abschließen“.</li>'
-    + '<li><b>Danach:</b> „Per WhatsApp schicken“ – nichts löschen, einfach senden. So sieht ' + esc(t) + ' genau, was du gemacht hast.</li>'
+    + '<li><b>Vor und nach dem Training:</b> Vorher antippen, wie frisch du dich fühlst – die Seite sagt dir, wie viel du heute machst. Nachher Anstrengung, ' + esc(WEL_PAIN) + ' antippen und „Training speichern“.</li>'
+    + (RM ? '<li><b>Danach:</b> nichts weiter – die App schickt deine Einheit automatisch und verschlüsselt ' + rmWohin(SELF, esc(therAcc())) + '.</li>'
+      : '<li><b>Danach:</b> „Per WhatsApp schicken“ – nichts löschen, einfach senden. So sieht ' + esc(t) + ' genau, was du gemacht hast.</li>')
     + '</ol>' + guideLine() + '<div class="row"><button type="button" class="btn pri" data-act="welcome-ok">' + ICON.check + 'Alles klar</button></div></section>';
 }
 function selfWelcome(){
   if (lsGet(LK('welcome'), 0)) return '';
   return '<section class="card hl" aria-labelledby="h-wel"><p class="eyebrow">Willkommen' + (S.profile.name ? ', ' + esc(S.profile.name) : '') + '</p><h2 id="h-wel">So nutzt du ' + esc(TITLE) + '</h2><ol class="steps">'
     + '<li><b>Im Training:</b> „Einheit öffnen“, pro Satz Gewicht und Wiederholungen eintragen und den Haken tippen. ' + esc(WEL_TRAIN) + '</li>'
-    + '<li><b>Vorher und nachher:</b> Vorher die Frische antippen. Nachher Anstrengung, ' + esc(WEL_PAIN) + ' antippen und „Einheit abschließen“.</li>'
+    + '<li><b>Vorher und nachher:</b> Vorher die Frische antippen. Nachher Anstrengung, ' + esc(WEL_PAIN) + ' antippen und „Training speichern“.</li>'
     + '<li><b>Gespeichert wird beim Abschließen</b> – direkt im Plan, ohne WhatsApp. Oben rechts siehst du, ob alles gespeichert ist.</li>'
     + '<li><b>Ansicht:</b> „' + esc(VIEW_LBL[0]) + '“ ist das, was deine Athletinnen sehen. „' + esc(VIEW_LBL[1]) + '“ zeigt zusätzlich Fachinfos und Quellen.</li>'
     + '</ol><div class="row"><button type="button" class="btn pri" data-act="welcome-ok">' + ICON.check + 'Alles klar</button></div></section>';
@@ -1227,13 +1237,14 @@ function sendCard(){
   var pd = pending(), nl = pd.l.length, nt = pd.t.length, last = lsGet(LK('sent'), ''), parts = [];
   if (nl) parts.push(nl + (nl === 1 ? ' Einheit' : ' Einheiten'));
   if (nt) parts.push(nt + (nt === 1 ? ' Testwert' : ' Testwerte'));
-  var info = parts.length ? 'Noch nicht bei ' + esc(therDat()) + ': <b>' + parts.join(', ') + '</b>.' : 'Gerade gibt es nichts Neues – alles ist bei ' + esc(therDat()) + '.';
+  var info = RM ? 'Normalerweise nicht nötig – die App schickt jede gespeicherte Einheit automatisch ' + rmWohin(SELF, esc(therAcc())) + '. Nur nutzen, falls das einmal nicht klappt.'
+    : parts.length ? 'Noch nicht bei ' + esc(therDat()) + ': <b>' + parts.join(', ') + '</b>.' : 'Gerade gibt es nichts Neues – alles ist bei ' + esc(therDat()) + '.';
   refreshZip();
   var noNum = !waNumber();
-  return '<section class="card" aria-labelledby="h-send"><p class="eyebrow">Fortschritt teilen</p><h3 id="h-send">Stand an ' + esc(therAcc()) + ' schicken</h3>'
+  return '<section class="card" aria-labelledby="h-send"><p class="eyebrow">' + (RM ? 'Falls nötig' : 'Fortschritt teilen') + '</p><h3 id="h-send">' + (RM ? 'Stand per WhatsApp schicken' : 'Stand an ' + esc(therAcc()) + ' schicken') + '</h3>'
     + '<p>' + info + '</p>'
-    + '<div class="row"><a class="btn pri" id="wa-link" href="' + esc(waHref()) + '" target="_blank" rel="noopener" data-act="sent-wa">' + ICON.send + 'Per WhatsApp schicken</a><button type="button" class="btn" data-act="copy-send">' + ICON.copy + 'Text kopieren</button></div>'
-    + '<p class="small muted">' + (last ? 'Zuletzt geschickt am ' + fmtDate(last) + '. ' : '') + 'Am besten nach jeder Einheit schicken, spätestens sonntags. In WhatsApp einfach abschicken – gern mit eigener Nachricht dazu, aber den Text nicht kürzen.' + (noNum ? ' WhatsApp öffnet sich ohne Empfänger – wähle ' + esc(therAcc()) + ' aus.' : '') + '</p>'
+    + '<div class="row"><a class="btn' + (RM ? '' : ' pri') + '" id="wa-link" href="' + esc(waHref()) + '" target="_blank" rel="noopener" data-act="sent-wa">' + ICON.send + 'Per WhatsApp schicken</a><button type="button" class="btn" data-act="copy-send">' + ICON.copy + 'Text kopieren</button></div>'
+    + '<p class="small muted">' + (last ? 'Zuletzt geschickt am ' + fmtDate(last) + '. ' : '') + (RM ? 'In WhatsApp einfach abschicken, den Text nicht kürzen.' : 'Am besten nach jeder Einheit schicken, spätestens sonntags. In WhatsApp einfach abschicken – gern mit eigener Nachricht dazu, aber den Text nicht kürzen.') + (noNum ? ' WhatsApp öffnet sich ohne Empfänger – wähle ' + esc(therAcc()) + ' aus.' : '') + '</p>'
     + (UI.sendText ? '<label class="small" for="send-box">Kopieren hat nicht automatisch geklappt – Text markieren und kopieren:</label><textarea class="inp codebox" id="send-box" readonly>' + esc(UI.sendText) + '</textarea>' : '')
     + '</section>';
 }
@@ -1636,7 +1647,7 @@ function finishCard(sid, e, ed){
   }
   var f = UI.fin[sid] || {}, v = function(k, d){ return f[k] != null ? f[k] : (e && e[k] != null ? e[k] : d); };
   var kv2 = v('k', null);
-  return '<section class="card hl finish" id="finish" aria-labelledby="h-fin"><p class="eyebrow">Zum Schluss</p><h3 id="h-fin">' + (e && e.f ? 'Rückmeldung ändern' : 'Einheit abschließen') + '</h3>'
+  return '<section class="card hl finish" id="finish" aria-labelledby="h-fin"><p class="eyebrow">Zum Schluss</p><h3 id="h-fin">' + (e && e.f ? 'Rückmeldung ändern' : 'Training speichern') + '</h3>'
     + '<div class="grid2">' + field('Datum', '<input class="inp" type="date" id="fin-d" data-fin="d" value="' + esc(v('d', '') || todayISO()) + '" max="' + todayISO() + '">', 'fin-d')
     + field('Dauer (Minuten)', '<input class="inp" type="text" inputmode="numeric" id="fin-m" data-fin="m" value="' + esc(v('m', m.min)) + '">', 'fin-m') + '</div>'
     + freshHtml('fin-fr', 'Wie frisch warst du vor dem Training?', v('fr', null), 'data-fin="fr"')
@@ -1647,8 +1658,8 @@ function finishCard(sid, e, ed){
     + zBlock(sid, e)
     + field(SELF ? 'Notiz (optional) – was dir aufgefallen ist' : 'Notiz (optional) – was ' + therNom() + ' wissen sollte', '<textarea class="inp" id="fin-n" data-fin="n" maxlength="400" placeholder="' + esc(FIN_NOTE_PH) + '">' + esc(v('n', '')) + '</textarea>', 'fin-n')
     + (UI.finErr ? '<p role="alert">' + chip('bad', esc(UI.finErr)) + '</p>' : '')
-    + '<div class="row"><button type="button" class="btn pri" data-act="finish" data-sid="' + sid + '">' + ICON.check + (e && e.f ? 'Änderungen speichern' : 'Einheit abschließen') + '</button></div>'
-    + '<p class="small muted">' + (selfOn() ? 'Beim Abschließen wird die Einheit direkt in deinem Plan gespeichert.' : 'Danach im Überblick „Per WhatsApp schicken“ tippen.') + '</p>' + (selfOn() && e ? selfDelHtml(sid) : '') + '</section>';
+    + '<div class="row"><button type="button" class="btn pri" data-act="finish" data-sid="' + sid + '">' + ICON.check + (e && e.f ? 'Änderungen speichern' : 'Training speichern') + '</button></div>'
+    + '<p class="small muted">' + (selfOn() ? 'Beim Abschließen wird die Einheit direkt in deinem Plan gespeichert.' : RM ? 'Die App schickt die Einheit danach automatisch ' + rmWohin(SELF, esc(therAcc())) + '.' : 'Danach im Überblick „Per WhatsApp schicken“ tippen.') + '</p>' + (selfOn() && e ? selfDelHtml(sid) : '') + '</section>';
 }
 function viewSession(sid){
   var ps = parseSid(sid); if (!ps || !SIDS[sid]){ UI.sess = null; return viewPlan(); }
@@ -1842,7 +1853,7 @@ function testsIntro(){
     + '<p><b>So trägst du deine Testwerte ein:</b></p><ol class="steps small">'
     + '<li><b>Kraft-Tests</b> (Woche 2, 5 und 9): direkt in der Einheit A (Montag) oder B (Mittwoch) – bei der Übung im blauen Kasten „Zuerst: Kraft-Test“. Gewicht, Wiederholungen und Reserve eintragen, dann „Test speichern“.</li>'
     + '<li><b>Sprungtests</b> (' + d[0] + ', ' + d[1] + ' und ' + d[2] + '): hier in diesem Tab – beim jeweiligen Test den Wert eintragen (bei zwei Seiten links und rechts), dann „Wert speichern“.</li>'
-    + '<li>Danach wie immer „Per WhatsApp schicken“ – die Testwerte gehen automatisch mit.</li></ol>'
+    + '<li>' + (RM ? 'Danach musst du nichts weiter tun – die Testwerte gehen automatisch mit.' : 'Danach wie immer „Per WhatsApp schicken“ – die Testwerte gehen automatisch mit.') + '</li></ol>'
     + '<div class="row"><button type="button" class="btn sm" data-act="scrollto" data-to="h-jump">' + ICON.gauge + 'Zu den Sprungtests</button><button type="button" class="btn sm" data-act="scrollto" data-to="h-rm">' + ICON.gauge + 'Zu den Kraft-Tests</button></div>'
     + '<p class="small muted">Immer gleich testen: gleiche Schuhe, ähnliche Tageszeit, ausgeruht. Seitenvergleich = schwächere Seite geteilt durch stärkere Seite.</p></section>';
 }
@@ -1891,8 +1902,8 @@ function dataCard(){
     h += '<div class="sep"></div>' + (SELF ? '<h4>Neu anfangen</h4><p class="small">Zurücksetzen löscht alle Einheiten im Plan und auf diesem Gerät. Die Einstellungen bleiben.</p>' : '<h4>Neue Athletin</h4><p class="small">Für eine andere Athletin am besten eine eigene Kopie dieser Seite verwenden. Zurücksetzen löscht alle Einheiten und Tests auf dieser Seite (die Einstellungen bleiben).</p>')
       + (UI.confirm === 'reset' ? '<div class="row"><button type="button" class="btn sm danger" data-act="reset-yes">Ja, alles löschen</button><button type="button" class="btn sm" data-act="cancel">Abbrechen</button></div>' : '<div class="row"><button type="button" class="btn sm danger" data-act="reset-ask">' + ICON.trash + 'Zurücksetzen</button></div>');
   } else {
-    h += '<p>Deine Einträge liegen auf diesem Gerät. Schick sie regelmäßig an ' + esc(therAcc()) + ' – dann sind sie auch im Plan gesichert.</p>'
-      + '<div class="row"><button type="button" class="btn pri" data-act="tab" data-tab="start">' + ICON.send + 'Zu „Stand schicken“</button></div>';
+    h += (RM ? '<p>' + esc(rmBanner(SELF, therAcc())) + '</p>' : '<p>Deine Einträge liegen auf diesem Gerät. Schick sie regelmäßig an ' + esc(therAcc()) + ' – dann sind sie auch im Plan gesichert.</p>'
+      + '<div class="row"><button type="button" class="btn pri" data-act="tab" data-tab="start">' + ICON.send + 'Zu „Stand schicken“</button></div>');
     if (WHY === 'nouser' && NS.artifact) h += '<div class="sep"></div><h4>Nur für ' + esc(therAcc()) + '</h4><p class="small">Falls die Seite dich als Trainer nicht erkennt, kannst du das Bearbeiten hier freischalten.</p><div class="row"><button type="button" class="btn sm" data-act="force-writer">Bearbeiten freischalten</button></div>';
   }
   return h + '</section>';
@@ -2194,8 +2205,8 @@ function finishSession(sid){
     return;
   }
   renderAll();
-  toast(wasDone ? 'Gespeichert.' : 'Stark! Einheit abgeschlossen – schick deinen Stand an ' + therAcc() + '.');
-  if (!wasDone){ UI.sess = null; UI.tab = 'start'; renderAll(false); window.scrollTo(0, 0); var sc = document.getElementById('h-send'); if (sc){ try { sc.scrollIntoView({ block: 'center' }); } catch (e2) {} } }
+  toast(wasDone ? 'Gespeichert.' : RM ? 'Stark! Training gespeichert.' : 'Stark! Training gespeichert – schick deinen Stand an ' + therAcc() + '.');
+  if (!wasDone){ UI.sess = null; UI.tab = 'start'; renderAll(false); window.scrollTo(0, 0); var sc = RM ? null : document.getElementById('h-send'); if (sc){ try { sc.scrollIntoView({ block: 'center' }); } catch (e2) {} } }
 }
 function scrollToId(id){ var el = document.getElementById(id); if (el){ try { el.scrollIntoView({ block: 'start' }); } catch (e) {} } }
 function saveMorning(sid, v){
