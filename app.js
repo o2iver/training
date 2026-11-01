@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version f0ef05c5bf
+/*! O.G. Trainings-App · Grundgerüst · Version 4a27813edc
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -156,7 +156,8 @@ function rmStart(id, C){
   document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'hidden') rmSenden(); });
   var root = document.getElementById('fk-root');
   if (root) root.addEventListener('click', function(ev){
-    var b = ev.target && ev.target.closest ? ev.target.closest('[data-act="finish"]') : null;
+    // nach „Training speichern“ und nach gespeicherten Testwerten gleich senden
+    var b = ev.target && ev.target.closest ? ev.target.closest('[data-act="finish"], [data-act="addtest"], [data-act="rm-save"], [data-act="rm-add"]') : null;
     if (b) setTimeout(rmSenden, 1500);
   });
   exStart();
@@ -2324,7 +2325,7 @@ function addTest(k){
   if (MODE === 'writer'){ commit(function(s){ s.tests.push(nt); }, true); toast('Wert gespeichert.'); return; }
   var lt = localTests(); lt.push(nt);
   if (!lsSet(LK('tests'), lt)) toast('Auf diesem Gerät kann nichts gespeichert werden (privates Fenster?).');
-  else toast('Wert gespeichert – auf diesem Gerät.');
+  else toast(RM ? 'Wert gespeichert.' : 'Wert gespeichert – auf diesem Gerät.');
   invalidate(); renderAll();
 }
 function valOf(id){ var el = document.getElementById(id); return el ? el.value : ''; }
