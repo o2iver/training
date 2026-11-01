@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version c8a7c59095
+/*! O.G. Trainings-App · Grundgerüst · Version f0ef05c5bf
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -265,7 +265,13 @@ function starten(){
 // Neuer Plan-Link in der Adresszeile: neu laden. Andere Sprungmarken lässt das Gerüst unberührt.
 window.addEventListener('hashchange', function(){ if (planAus(location.hash)) location.reload(); });
 if ('serviceWorker' in navigator && window.isSecureContext && location.protocol !== 'file:'){
-  // bei jedem Öffnen nach einer neuen App-Fassung schauen; sie gilt dann ab dem nächsten Öffnen
+  // bei jedem Öffnen nach einer neuen App-Fassung schauen. Kommt sie gleich beim Öffnen an, lädt die Seite
+  // einmal neu und zeigt sie sofort; kommt sie später, gilt sie ab dem nächsten Öffnen.
+  var swHatte = !!navigator.serviceWorker.controller, swStart = Date.now(), swNeu = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function(){
+    if (!swHatte || swNeu || Date.now() - swStart > 15000 || document.getElementById('ogt-extra')) return;
+    swNeu = true; location.reload();
+  });
   navigator.serviceWorker.register('sw.js').then(function(reg){ return reg.update(); }).catch(function(){});
 }
 
