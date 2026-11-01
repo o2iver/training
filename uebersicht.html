@@ -298,6 +298,9 @@ async function los(){
   }
   document.getElementById('stand').textContent = (live.text ? live.text.charAt(0).toUpperCase() + live.text.slice(1) : 'Stand: ' + (window.OGT_STAND || '–'))
     + ' · ' + (alle.length - tests) + ' Rückmeldung(en)' + (tests ? ' · Verbindungstest ' + fmtZeit(test) + ' ✓' : '');
+  // „Mein Training“ öffnet Ollis eigenen Plan direkt (die App merkt ihn sich dann) – kein Link nötig
+  var eigen = Object.keys(PLAENE).filter(function(k){ return PLAENE[k].eigen && PLAENE[k].link; })[0];
+  if (HANDY && eigen) document.getElementById('training').href = './#' + PLAENE[eigen].link;
   // auch Pläne ohne Rückmeldung zeigen, damit sich jeder Plan ansehen lässt
   Object.keys(PLAENE).forEach(function(k){ if (!daten[k]) daten[k] = { log: {}, tests: {}, extra: {}, zuletzt: '' }; });
   var keys = Object.keys(daten).sort(function(a, b){ return daten[a].zuletzt < daten[b].zuletzt ? 1 : (daten[a].zuletzt > daten[b].zuletzt ? -1 : ((PLAENE[a] || {}).titel || a).localeCompare((PLAENE[b] || {}).titel || b)); });
