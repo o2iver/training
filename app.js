@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version 1b0c58b490
+/*! O.G. Trainings-App · Grundgerüst · Version 2608f86587
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -9,6 +9,7 @@
 var MERK = 'ogt:plan';                                  // zuletzt geöffneter Plan auf diesem Gerät
 var LINK_RE = /([a-z0-9]{12})\.([A-Za-z0-9_-]{43})/;   // Kennung.Schlüssel
 var COACH = /[?&]coach=1(&|$)/.test(location.search);  // „Plan ansehen“ aus Ollis Übersicht: nur ansehen – nichts merken, nichts senden
+var IMPRESSUM = 'https://og-physiotherapie.de/impressum/';   // Impressum auf Ollis Website (O.G. Physiotherapie)
 
 function b64uBytes(s){
   s = String(s).replace(/-/g, '+').replace(/_/g, '/');
@@ -31,7 +32,7 @@ function karte(titel, text, mitFeld){
     + (mitFeld ? '<form id="ogt-form" novalidate><label for="ogt-link">Link aus deiner Nachricht</label>'
       + '<input id="ogt-link" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Link hier einfügen">'
       + '<button type="submit">Plan öffnen</button><p id="ogt-fehler" role="alert"></p></form>' : '')
-    + '</div>';
+    + '<p class="ogt-impressum"><a href="' + IMPRESSUM + '" target="_blank" rel="noopener">Impressum</a></p></div>';
   var f = document.getElementById('ogt-form');
   if (f) f.addEventListener('submit', function(ev){
     ev.preventDefault();
@@ -2161,7 +2162,8 @@ function viewInfo(){
   h += libCard() + dataCard();
   h += '<section class="card" aria-labelledby="h-refs"><p class="eyebrow">Evidenz</p><h2 id="h-refs">Quellen</h2><details id="refs-box"' + (UI.refsOpen || isPro() ? ' open' : '') + '><summary class="small" style="cursor:pointer;font-weight:600">' + REFS.length + ' Quellen anzeigen</summary><ol class="refs" style="margin-top:10px">'
     + REFS.map(function(r){ return '<li id="q' + r.n + '">' + esc(r.t) + ' <a href="' + esc(r.u) + '" target="_blank" rel="noopener">Link</a></li>'; }).join('') + '</ol></details>'
-    + '<p class="small muted">' + esc(INFO_NOTE) + '</p></section>';
+    + '<p class="small muted">' + esc(INFO_NOTE) + '</p>'
+    + '<p class="small muted">Anbieter: O.G. Physiotherapie · <a href="' + IMPRESSUM + '" target="_blank" rel="noopener">Impressum</a></p></section>';
   return h;
 }
 function libCard(){
@@ -2187,7 +2189,7 @@ function dataCard(){
   }
   return h + '</section>';
 }
-function foot(){ return '<p class="foot">' + esc(TITLE) + ' – ' + esc(FOOT_TEXT) + (SELF ? ' Bei ungewohnten Schmerzen, Schwellung oder Instabilität: Training pausieren und abklären lassen.' : ' Bei ungewohnten Schmerzen, Schwellung oder Instabilität: Training pausieren und ' + esc(therAcc()) + ' oder ärztlich abklären.') + '</p>'; }
+function foot(){ return '<p class="foot">' + esc(TITLE) + ' – ' + esc(FOOT_TEXT) + (SELF ? ' Bei ungewohnten Schmerzen, Schwellung oder Instabilität: Training pausieren und abklären lassen.' : ' Bei ungewohnten Schmerzen, Schwellung oder Instabilität: Training pausieren und ' + esc(therAcc()) + ' oder ärztlich abklären.') + ' · <a href="' + IMPRESSUM + '" target="_blank" rel="noopener">Impressum</a></p>'; }
 
 // ---------- Rendern ----------
 function tabBody(){
