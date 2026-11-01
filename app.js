@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version e07b53a3e8
+/*! O.G. Trainings-App · Grundgerüst · Version 6f7d1118d4
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -246,6 +246,11 @@ function exStart(){
   k.addEventListener('click', exFenster);
   document.body.appendChild(k);
   document.body.classList.add('ogt-mit-extra');
+  if (RM_STATUS.self && RM.einwurf){   // nur Ollis eigener Plan: Sprung zur Übersicht aller Rückmeldungen (gleiche App)
+    var u = document.createElement('a');
+    u.id = 'ogt-uebersicht-knopf'; u.className = 'ogt-uebersicht-knopf'; u.href = 'uebersicht.html'; u.textContent = 'Übersicht';
+    document.body.appendChild(u);
+  }
 }
 
 function starten(){

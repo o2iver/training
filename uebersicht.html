@@ -17,6 +17,7 @@ header{background:var(--navy);color:#fff;padding:18px 20px}
 header h1{margin:0;font-size:22px;letter-spacing:.2px}
 header p{margin:4px 0 0;opacity:.85;font-size:13px}
 #neu{float:right;font:600 14px system-ui,sans-serif;padding:8px 14px;border:0;border-radius:10px;background:var(--petrol);color:#fff;cursor:pointer}
+#training{float:right;margin-right:8px;font:600 14px system-ui,sans-serif;padding:8px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.6);color:#fff;text-decoration:none}
 main{max-width:1100px;margin:0 auto;padding:16px}
 .karte{background:var(--karte);border-radius:14px;padding:16px 18px;margin:0 0 16px;box-shadow:0 1px 3px rgba(18,24,38,.08)}
 .karte h2{margin:0 0 2px;font-size:19px;color:var(--navy)}
@@ -48,7 +49,7 @@ footer{max-width:1100px;margin:0 auto;padding:0 16px 28px;color:var(--grau);font
 </style>
 </head>
 <body>
-<header><button id="neu" type="button" onclick="location.reload()">Aktualisieren</button><h1>Übersicht Trainings-App</h1><p id="stand"></p></header>
+<header><button id="neu" type="button" onclick="location.reload()">Aktualisieren</button><a id="training" href="./" hidden>Mein Training</a><h1>Übersicht Trainings-App</h1><p id="stand"></p></header>
 <main id="app"><p>Wird entschlüsselt …</p></main>
 <footer id="fuss">Nur auf diesem PC öffnen – diese Datei enthält den privaten Schlüssel für die Rückmeldungen und wird
 nie hochgeladen oder verschickt. Die Werte sind Eigenangaben: Hinweise, keine Diagnose.</footer>
@@ -312,6 +313,7 @@ async function los(){
 }
 function fehlerZeigen(e){ app.innerHTML = '<div class="sperre">Fehler beim Entschlüsseln: ' + esc(e && e.message) + '</div>'; }
 if (HANDY){
+  document.getElementById('training').hidden = false;   // zurück zu Ollis eigenem Training (gleiche App, gemerkter Plan)
   document.getElementById('fuss').textContent = 'Der Schlüssel liegt nur auf diesem Handy – die Bildschirmsperre schützt ihn. Die Werte sind Eigenangaben: Hinweise, keine Diagnose.';
   handyLaden().then(function(ok){ if (ok) return los(); }).catch(fehlerZeigen);
 } else los().catch(fehlerZeigen);
