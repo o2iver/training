@@ -264,6 +264,14 @@ textarea.inp{min-height:90px;resize:vertical}
 .pain input:checked + label.z2{background:var(--bad-soft);border-color:var(--bad-dot);color:var(--bad)}
 .pain input:focus-visible + label{outline:2px solid var(--accent);outline-offset:2px}
 .pain-scale{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3);margin-top:2px}
+.nrs-now{margin-top:4px;font-size:13px;font-weight:600;color:var(--ink-2);max-width:none}
+.nrs-now:empty{display:none}
+.nrs-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.nrs-list li{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:start}
+.nrs-n{display:flex;align-items:center;justify-content:center;height:22px;border-radius:6px;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.nrs-n.z0{background:var(--ok-soft);color:var(--ok)}
+.nrs-n.z1{background:var(--warn-soft);color:var(--warn)}
+.nrs-n.z2{background:var(--bad-soft);color:var(--bad)}
 
 /* ---------- Ampel ---------- */
 .ampel{display:flex;flex-direction:column;gap:8px}
@@ -417,6 +425,7 @@ a.btn{text-decoration:none}
 .blk-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;border-bottom:2px solid var(--line);padding-bottom:4px;margin-top:4px}
 .blk-h h3{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:.02em;text-transform:uppercase}
 .blk-h span{font-size:13px;color:var(--ink-3)}
+.blk-note{color:var(--ink-2)}
 .ss{display:flex;flex-direction:column;gap:8px;border-left:3px solid var(--accent);padding-left:10px;margin-left:2px}
 .ss-h{margin:0;font-size:13px;font-weight:600;color:var(--accent)}
 
@@ -554,6 +563,14 @@ a.btn{text-decoration:none}
 .why{font-size:12.5px;color:var(--ink-3)}
 .wkd.game{background:var(--accent-soft);border-color:transparent}
 .wkd.game .s{color:var(--accent);font-size:13px;letter-spacing:.04em}
+/* Spieltag mit Aktivierung am Morgen (Heimspiel) */
+.wkd.gday{background:var(--accent-soft);border-color:transparent}
+.wkd.gday .s{display:inline-flex;align-items:center;gap:2px;color:var(--accent)}
+.wkd.gday .s svg{width:12px;height:12px;flex:none}
+.wkd.gday.done{background:var(--ok-soft)}
+.wkd.gday.done .s{color:var(--ok)}
+.wkd.gday.part{background:var(--warn-soft)}
+.wkd.gday.part .s{color:var(--warn)}
 .scard.off{opacity:.62}
 .scard.off .sid{background:var(--panel-2);color:var(--ink-3)}
 .gamechip{display:inline-flex;align-items:center;gap:6px;vertical-align:middle}
