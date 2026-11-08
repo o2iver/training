@@ -98,7 +98,8 @@ function zahl(n){ return n == null || n === '' ? '?' : String(n).replace('.', ',
 function montag(d){ var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x; }
 function teilSid(s){ var m = /^w(\d+)-(.+)$/.exec(s || ''); return m ? { w: +m[1], s: m[2] } : { w: null, s: s || '' }; }
 // Farbe nur für Beschwerdewerte (ab 3 gelb, ab 5 rot); Frische und Anstrengung bleiben neutral
-function wert(v, beschwerde){ if (v == null || v === '') return '–'; var k = !beschwerde ? '' : (v >= 5 ? 'hoch' : (v >= 3 ? 'mittel' : '')); return '<span class="' + k + '">' + esc(v) + '/10</span>'; }
+function selbstauskunft(e){ var w = [e.sl, e.mk, e.sr]; return w.some(function(v){ return v != null; }) ? w.map(function(v){ return v != null ? esc(v) : '–'; }).join(' · ') : '–'; }
+  function wert(v, beschwerde){ if (v == null || v === '') return '–'; var k = !beschwerde ? '' : (v >= 5 ? 'hoch' : (v >= 3 ? 'mittel' : '')); return '<span class="' + k + '">' + esc(v) + '/10</span>'; }
 function fmtZeit(s){ var m = /^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}:\d{2}))?/.exec(s || ''); return m ? m[3] + '.' + m[2] + '.' + m[1] + (m[4] ? ' ' + m[4] + ' Uhr' : '') : (s || '–'); }
 function einheitName(e, plan){ var p = teilSid(e.s), s = plan.sess[p.s]; return (p.w ? 'W' + p.w + ' · ' : '') + (s ? (s.s || s.t) : p.s); }
 
@@ -154,12 +155,12 @@ function planKarte(k, d){
   h += '<h3>Einheiten</h3>';
   if (!log.length) h += '<p class="leer">Noch keine Einheiten übermittelt.</p>';
   else {
-    h += '<div class="tabelle"><table><thead><tr><th>Datum</th><th>Einheit</th><th>Status</th><th>Min</th><th>Frische</th><th>Anstrengung</th><th>'
+    h += '<div class="tabelle"><table><thead><tr><th>Datum</th><th>Einheit</th><th>Status</th><th>Min</th><th>Frische</th><th>Schlaf · Kater · Stress (1–5, 5 = gut)</th><th>Anstrengung</th><th>'
       + esc(plan.schmerz) + '</th><th>morgens danach</th>' + (plan.ruecken ? '<th>' + esc(plan.ruecken) + '</th><th>morgens danach</th>' : '')
       + '<th>' + esc(plan.arm) + '</th><th>Notiz und Sätze</th></tr></thead><tbody>';
     log.forEach(function(e){
       h += '<tr><td class="w">' + fmt(e.d) + '</td><td>' + esc(einheitName(e, plan)) + '</td><td class="w">' + (e.f ? 'fertig ✓' : 'begonnen')
-        + '</td><td>' + (e.m != null ? esc(e.m) : '–') + '</td><td>' + wert(e.fr, false) + '</td><td>' + wert(e.e, false) + '</td><td class="w">' + wert(e.k, true)
+        + '</td><td>' + (e.m != null ? esc(e.m) : '–') + '</td><td>' + wert(e.fr, false) + '</td><td class="w">' + selbstauskunft(e) + '</td><td>' + wert(e.e, false) + '</td><td class="w">' + wert(e.k, true)
         + (e.ks ? ' ' + esc(plan.seiten[e.ks] || e.ks) : '') + '</td><td>' + wert(e.o, true)
         + (plan.ruecken ? '</td><td>' + wert(e.rb, true) + '</td><td>' + wert(e.ro, true) : '') + '</td><td>' + wert(e.sh, true) + '</td><td>'
         + (e.n ? '„' + esc(e.n) + '“' : '') + '<details><summary>Sätze</summary>' + saetze(e, plan) + '</details></td></tr>';

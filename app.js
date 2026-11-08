@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version 4a9e915828
+/*! O.G. Trainings-App · Grundgerüst · Version 4088bbbf3a
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -388,6 +388,8 @@ var ROUND_NM = I.ROUND_NM || null;     // Zusatzübungen als Runde: { Übung: 'N
 var ROUND_SOLO = I.ROUND_SOLO || null;
 var GDAY_TXT = I.GDAY_TXT || '';
 var ALT_FOR = I.ALT_FOR || {};
+var LEICHT = I.LEICHT || { ab: 2, stufen: 1 };   // „Deutlich zu leicht“: ab wie viel Reserve über der Vorgabe, wie viele Stufen mehr (Athletinnen klein, Olli größer)
+var SA_FELDER = [['sl', 'Schlaf', '1 = sehr schlecht', '5 = sehr gut'], ['mk', 'Muskelkater', '1 = sehr stark', '5 = keiner'], ['sr', 'Stress', '1 = sehr viel', '5 = keiner']];   // Kurze Selbstauskunft vor dem Training (08.11.2026): nur zum Mitlesen, keine Automatik
 var GD_PCT = I.GD_PCT || 0; // { head, x: { Übung: 'Text' } } – Zusatzübungen, die danach für sich laufen (z. B. Bizeps)
 var HOLD = I.HOLD || null;             // { back|hip|arm: { Übung: 1 } } – Gewichtsvorschlag halten, wenn sich das bei der letzten Einheit mit 3 oder mehr gemeldet hat
 var ORIENT = I.ORIENT || null;         // { head, text, refs, tail } – Orientierungswert (SQ_REF × Körpergewicht) im Kraft-Test – fehlt = aus
@@ -590,6 +592,7 @@ function normEntry(e){
   var rs = (e.r && typeof e.r === 'object') ? e.r : {};
   Object.keys(rs).forEach(function(id){ if (!EX[id]) return; var n = clampN(rs[id], 0, 4); if (n != null) o.r[id] = Math.round(n); });
   if (BACK_LBL){ o.rb = clampN(e.rb, 0, 10); o.ro = clampN(e.ro, 0, 10); if (o.rb != null) o.rb = Math.round(o.rb); if (o.ro != null) o.ro = Math.round(o.ro); }
+  SA_FELDER.forEach(function(f){ var v = clampN(e[f[0]], 1, 5); if (v != null) o[f[0]] = Math.round(v); });
   var zz = zNorm(e.z); if (zz.length) o.z = zz;
   return o;
 }
@@ -711,7 +714,7 @@ function nextSession(){
   for (var i = 0; i < ws.length; i++){ if (sessStatus(w, ws[i], log) !== 'done') return { w: w, s: ws[i] }; }
   return { weekDone: true, w: w };
 }
-function weekCount(w){ var ws = weekSess(w); if (!ws.length) return { done: 0, tot: 0 }; var log = L(), d = 0; ws.forEach(function(s){ if (sessStatus(w, s, log) === 'done') d++; }); return { done: d, tot: ws.length }; }
+function weekCount(w){ var ws = weekSess(w); if (!ws.length) return { done: 0, tot: 0 }; var log = L(), d = 0, t = 0; ws.forEach(function(s){ var fertig = sessStatus(w, s, log) === 'done'; if (fertig) d++; if (fertig || !SESS[s].frei) t++; }); return { done: d, tot: t }; }   // freiwillige Einheiten zählen nur mit, wenn sie gemacht wurden
 
 // ---------- Kraft-Schätzung & Vorschlag ----------
 function e1rm(kg, reps, rir){ if (!(kg > 0) || !(reps > 0)) return null; var r = reps + (rir == null ? 2 : rir); if (r > 16) r = 16; return kg * (1 + r / 30); }
@@ -759,6 +762,8 @@ function rmStart(r, w){
 function floorTo(v, st){ return Math.floor(v / st + 1e-6) * st; }
 var CHK = { sq: 1, bench: 1, dl: 1 };
 // Gewichte laut Plan (aus dem Kalender) mit Ollis Regeln: RPE 9+ → Gewicht wiederholen · weniger genommen → der Plan rückt nach · Beschwerden ab 3 → nicht steigern
+// Die Skala endet bei „4+“: darum zählt 4+ immer, wenn die Vorgabe darunter lag
+function zuLeicht(p, rir){ if (rir == null || !p || p.rlo == null) return false; var oben = p.rhi != null ? p.rhi : p.rlo; return rir > oben && rir >= Math.min(4, oben + LEICHT.ab); }
 function planSuggest(x, p, ps){
   var base = p.kg, out = { kg: base, ref: null, msg: 'laut Plan' };
   var lp = lastPerf(x, ps.w), wk = WEEKS[ps.w] || {};
@@ -771,6 +776,7 @@ function planSuggest(x, p, ps){
   if (rir != null && rir <= 1 && top < base){ out.kg = top; out.msg = 'letztes Mal RPE 9+ (Reserve ' + rir + ') – Gewicht wiederholen'; }
   else if (top < pp.kg){ out.kg = Math.min(base, top + step); out.msg = 'letztes Mal ' + kgText(top, ex) + ' statt ' + kgText(pp.kg, ex) + ' – der Plan rückt eine Stufe nach'; }
   else if ((e.k >= 3 || e.o >= 3 || e.sh >= 3) && top < base){ out.kg = top; out.msg = 'letztes Mal Beschwerden ab 3 – heute nicht steigern'; }
+  else if (zuLeicht(pp, rir) && top >= pp.kg && top + LEICHT.stufen * (ex.st || 2.5) > base && (e.fr == null || e.fr >= 7) && !(e.k >= 3 || e.o >= 3 || e.sh >= 3) && !(BACK_LBL && (e.rb >= 3 || e.ro >= 3))){ out.kg = top + LEICHT.stufen * (ex.st || 2.5); out.msg = 'letztes Mal deutlich zu leicht (Reserve ' + (rir >= 4 ? '4+' : rir) + ') – heute ' + kgText(out.kg, ex) + ' statt ' + kgText(base, ex); }
   else if (step > 0) out.msg = 'laut Plan · +' + fmtNum(step) + ' kg zur Vorwoche';
   return out;
 }
@@ -817,7 +823,8 @@ function suggest(x, p, sid){
         var good = (e.fr == null || e.fr >= 7) && !(e.k >= 3) && !(e.o >= 3) && !(e.sh >= 3) && !(BACK_LBL && (e.rb >= 3 || e.ro >= 3));
         ref = top[0];
         if (pp && pp.lo === p.lo && pp.hi === p.hi){
-          if (topHit && rirOk && good){ load = top[0] + st; msg = '+' + fmtNum(st) + ' kg – letztes Mal alle Wiederholungen geschafft'; }
+          if (lowOk && good && zuLeicht(pp, e.r[x])){ load = top[0] + st * LEICHT.stufen; msg = '+' + fmtNum(st * LEICHT.stufen) + ' kg – letztes Mal deutlich zu leicht (Reserve ' + (e.r[x] >= 4 ? '4+' : e.r[x]) + ')'; }
+          else if (topHit && rirOk && good){ load = top[0] + st; msg = '+' + fmtNum(st) + ' kg – letztes Mal alle Wiederholungen geschafft'; }
           else if (lowOk && rirOk){ load = top[0]; msg = topHit ? 'gleiches Gewicht – letztes Mal Frische unter 7 oder Beschwerden' : 'gleiches Gewicht – erst alle Sätze mit ' + pp.hi + ' Wiederholungen'; }
           else { load = Math.min(top[0], floorTo(e1rm(last[0], last[1], rirL) / div, st)); msg = load < top[0] ? 'etwas leichter – letztes Mal war es schwerer als geplant' : 'gleiches Gewicht'; }
         } else {
@@ -953,6 +960,7 @@ function entryHead(e){
   var bits = [fmtWd(entryDate(e)) + ' · W' + ps.w + ' ' + m.s + (e.f ? ' ✓' : ' (begonnen)')];
   if (e.m != null) bits.push(e.m + ' min');
   if (e.fr != null) bits.push('Frische ' + e.fr + '/10');
+  if (saText(e)) bits.push(saText(e));
   if (e.e != null) bits.push('Anstrengung ' + e.e + '/10');
   if (e.k != null) bits.push(PAIN_LBL + ' ' + e.k + '/10' + (e.ks ? ' ' + optLabel(OPT.ks, e.ks) : ''));
   if (e.o != null) bits.push((BACK_LBL ? PAIN_LBL + ' ' : '') + 'morgens danach ' + e.o + '/10');
@@ -1475,11 +1483,23 @@ function sessGameBanner(w, s, e){
   var i = sessGameInfo(w, s, e); if (!i) return '';
   return '<div class="banner ' + i.cls + '">' + (i.ic || ICON.ball) + '<div class="b-body"><b>' + esc(i.t) + '</b><p>' + esc(i.p) + '</p></div></div>';
 }
+// Kurze Selbstauskunft unter der Frische: drei Fragen, 1–5, höher ist besser
+function saText(e){ var b = []; SA_FELDER.forEach(function(f){ if (e[f[0]] != null) b.push(f[1] + ' ' + e[f[0]] + '/5'); }); return b.join(' · '); }
+function saveSelbst(sid, k, v){ if (!canLog() || !SIDS[sid]) return; flushNow(); var e = getEntry(sid) || newEntry(sid); e[k] = v; putEntry(e); }
+function saHtml(sid, e){
+  return '<p class="small muted" style="margin:14px 0 0">Noch drei schnelle Fragen – antippen reicht. Am Plan ändert das nichts.</p>' + SA_FELDER.map(function(f){
+    var k = f[0], name = 'sa-' + k, val = e && e[k] != null ? e[k] : null;
+    var h = '<fieldset class="field" style="border:0;padding:0;margin:10px 0 0"><legend class="flabel" style="padding:0;margin-bottom:6px;font-size:14px;font-weight:600;color:var(--ink-2)">' + esc(f[1]) + '</legend><div class="pain sa">';
+    for (var i = 1; i <= 5; i++){ var id = name + '-' + i; h += '<input type="radio" name="' + name + '" id="' + id + '" value="' + i + '"' + (val === i ? ' checked' : '') + ' data-sa="' + sid + '|' + k + '"><label for="' + id + '" class="z' + (i <= 2 ? 2 : (i === 3 ? 1 : 0)) + '">' + i + '</label>'; }
+    return h + '</div><div class="pain-scale"><span>' + esc(f[2]) + '</span><span>' + esc(f[3]) + '</span></div></fieldset>';
+  }).join('');
+}
 function freshCard(sid, e){
   var v = e && e.fr != null ? e.fr : null, z = fzone(v);
   return '<section class="card" aria-labelledby="h-fr"><p class="eyebrow">Kurz-Check vor dem Training</p><h3 id="h-fr">Wie frisch fühlst du dich heute?</h3>'
     + freshHtml('pre-fr', 'Frische', v, 'data-fr="' + sid + '"')
     + (z >= 0 ? '<div class="ampel" style="margin-top:10px"><div class="amp ' + ['g', 'y', 'r'][z] + '"><span class="lamp"><i></i>' + esc(FRESH[z].l) + '</span><span>' + esc(FRESH[z].t) + '</span></div></div>' : '<p class="small muted" style="margin-top:6px">Antippen reicht – wird gleich gespeichert. Danach siehst du, wie viel du heute machst.</p>')
+    + saHtml(sid, e)
     + '</section>';
 }
 function todayCard(){
@@ -1969,6 +1989,7 @@ function finishCard(sid, e, ed){
   if (!ed){
     if (!e) return '';
     var kv = [['Datum', e.d ? fmtWd(e.d) : '–'], ['Status', e.f ? 'abgeschlossen' : 'begonnen'], ['Dauer', e.m != null ? e.m + ' min' : '–'], ['Frische vorher', e.fr != null ? e.fr + '/10' : '–'], ['Anstrengung', e.e != null ? e.e + '/10' : '–'], [PAIN_LBL, e.k != null ? e.k + '/10' + (e.ks ? ' (' + optLabel(OPT.ks, e.ks) + ')' : '') : '–'], [PAIN_LBL + ' am Morgen danach', e.o != null ? e.o + '/10' : '–']];
+    if (saText(e)) kv.push(['Selbstauskunft', saText(e)]);
     if (BACK_LBL && (e.rb != null || e.ro != null)) kv.push([BACK_LBL, (e.rb != null ? e.rb + '/10' : '–') + (e.ro != null ? ' · am Morgen danach ' + e.ro + '/10' : '')]);
     if (e.sh != null) kv.push([ARM_LBL, e.sh + '/10']);
     if (e.z && e.z.length) kv.push(['Zusätzlich gemacht', e.z.map(zLine).join('; ')]);
@@ -2761,6 +2782,7 @@ function onChange(ev){
   if (t.hasAttribute('data-rmq')){ var qk = t.getAttribute('data-rmq'); UI.rmDraft[qk] = UI.rmDraft[qk] || {}; UI.rmDraft[qk].q = +t.value; return; }
   if (t.hasAttribute('data-rm') || t.hasAttribute('data-rmf')){ rmDraftFrom(t); return; }
   if (t.hasAttribute('data-fr')){ saveFresh(t.getAttribute('data-fr'), +t.value); return; }
+  if (t.hasAttribute('data-sa')){ var saTeile = t.getAttribute('data-sa').split('|'); saveSelbst(saTeile[0], saTeile[1], +t.value); return; }
   if (t.hasAttribute('data-mo')){ saveMorning(t.getAttribute('data-mo'), +t.value); return; }
   if (t.hasAttribute('data-mob')){ saveMorningBack(t.getAttribute('data-mob'), +t.value); return; }
   if (t.hasAttribute('data-fz')){ zSet(t); return; }
