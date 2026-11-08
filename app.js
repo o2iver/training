@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version 4088bbbf3a
+/*! O.G. Trainings-App · Grundgerüst · Version ea6fcb421f
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -560,10 +560,10 @@ function gameText(g){ return fmtWd(g.d) + ' · ' + g.t; }
 function sessOff(w, s){ if (OFF[w] && OFF[w][s]) return true; var pd = planDate(w, s); return !!gameOn(pd) && pd !== gdayOf(w, s); }
 function weekSess(w){ var ph = phaseOfWeek(w); if (!ph) return []; return ph.sess.filter(function(s){ return !sessOff(w, s); }); }
 function plannedSoFar(){
-  var w = curWeek(), n = 0; if (w == null || w < 1) return 0;
+  var w = curWeek(), n = 0, log = L(); if (w == null || w < 1) return 0;
   for (var k = Math.max(1, weekOf(LOG_FROM) || 1); k <= Math.min(w, LAST_WEEK); k++){
     var ph = phaseOfWeek(k); if (!ph) continue;
-    weekSess(k).forEach(function(s){ if (k < w || planDate(k, s) <= todayISO()) n++; });
+    weekSess(k).forEach(function(s){ if ((k < w || planDate(k, s) <= todayISO()) && (!SESS[s].frei || sessStatus(k, s, log) === 'done')) n++; });   // freiwillige Einheiten nur, wenn sie gemacht wurden
   }
   return n;
 }
@@ -1446,15 +1446,16 @@ function hbNote(){
 }
 function weekStrip(w){
   var ph = phaseOfWeek(w); if (!ph) return '';
-  var ws = weekStart(w), log = L(), byDay = {}, ed = endDays(w);
-  ph.sess.forEach(function(s){ byDay[planDate(w, s)] = s; });
+  var ws = weekStart(w), log = L(), byDay = {}, mehr = {}, ed = endDays(w);
+  ph.sess.forEach(function(s){ var pd = planDate(w, s); if (byDay[pd]) (mehr[pd] = mehr[pd] || []).push(s); else byDay[pd] = s; });   // auch zwei Einheiten am selben Tag (Ollis Sonntag)
   var h = '<div class="wkstrip" role="list" aria-label="Woche ' + w + '">';
   for (var i = 0; i < 7; i++){
     var d = addDays(ws, i), g = gameOn(d), s = byDay[d] || null; if (g && s && gdayOf(w, s) !== d) s = null;
     var en = !g && !s && ed[wdOf(d)] ? ed[wdOf(d)] : null, both = !!(g && s);
-    var st = s ? sessStatus(w, s, log) : (en ? endStatus(w, en, log) : 'rest');
+    var alle = s ? [s].concat(mehr[d] || []) : [], sts = alle.map(function(x){ return sessStatus(w, x, log); });
+    var st = s ? (sts.length > 1 ? (sts.every(function(v){ return v === 'done'; }) ? 'done' : (sts.some(function(v){ return v === 'done' || v === 'part'; }) ? 'part' : 'open')) : sts[0]) : (en ? endStatus(w, en, log) : 'rest');
     var cls = 'wkd' + (en ? ' end' : '') + (d === todayISO() ? ' today' : '') + (g && !s ? ' game' : (st === 'done' ? ' done' : (st === 'part' ? ' part' : (st === 'rest' ? ' rest' : '')))) + (both ? ' gday' : '');
-    h += '<div class="' + cls + '" role="listitem"' + (g ? ' title="' + esc('Spiel: ' + g.t + (both ? ' – morgens Einheit ' + s : '')) + '"' : (en ? ' title="' + esc(endLabel(en, false)) + '"' : '')) + '><span class="d">' + WD[wdOf(d)] + '</span><span class="s">' + (both ? esc(s) + ICON.ball + '<span class="vh"> und Spiel</span>' : (g ? 'Spiel' : (s ? esc(s) : (en ? esc(endLabel(en, true)) : '·')))) + '</span><span class="n">' + fmtShort(d).slice(0, 3) + '</span></div>';
+    h += '<div class="' + cls + '" role="listitem"' + (g ? ' title="' + esc('Spiel: ' + g.t + (both ? ' – morgens Einheit ' + s : '')) + '"' : (en ? ' title="' + esc(endLabel(en, false)) + '"' : '')) + '><span class="d">' + WD[wdOf(d)] + '</span><span class="s">' + (both ? esc(s) + ICON.ball + '<span class="vh"> und Spiel</span>' : (g ? 'Spiel' : (s ? esc(alle.join('+')) : (en ? esc(endLabel(en, true)) : '·')))) + '</span><span class="n">' + fmtShort(d).slice(0, 3) + '</span></div>';
   }
   return h + '</div>';
 }
