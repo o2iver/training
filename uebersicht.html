@@ -44,6 +44,7 @@ footer{max-width:1100px;margin:0 auto;padding:0 16px 28px;color:var(--grau);font
 .form input{font:inherit;font-size:16px;padding:10px;border:1px solid var(--linie);border-radius:10px;width:100%}
 .knopf{font:600 15px system-ui,sans-serif;padding:10px 14px;border:0;border-radius:10px;background:var(--navy);color:#fff;cursor:pointer}
 .knopf.leise{background:transparent;color:var(--petrol);border:1px solid var(--linie)}
+a.knopf{display:inline-block;text-decoration:none;margin-top:4px}
 .qr{display:block;max-width:100%;height:auto;margin:10px 0}
 @media (max-width:600px){main{padding:10px}.karte{padding:14px 12px}table{font-size:13px}th,td{padding:6px 5px}header h1{font-size:19px}}
 </style>
@@ -143,7 +144,8 @@ function planKarte(k, d){
   });
   var h = '<section class="karte" data-plan="' + esc(k) + '"><h2>' + esc(plan.titel) + '</h2><div class="klein">Kennung ' + esc(k)
     + (plan.start ? ' · Start ' + fmt(plan.start) : '') + ' · letzte Rückmeldung ' + esc(fmtZeit(d.zuletzt)) + '</div>'
-    + (plan.link ? '<p><a class="knopf leise" href="' + esc(planAdresse(plan.link)) + '">Plan ansehen</a></p>' : '');
+    + (plan.link ? '<p><a class="knopf leise" href="' + esc(planAdresse(plan.link)) + '">Plan ansehen</a>'
+      + (HANDY && !plan.eigen && !/^TEST/.test(plan.titel) ? ' <a class="knopf" href="' + esc(waLink(plan.link)) + '" target="_blank" rel="noopener">Link per WhatsApp schicken</a>' : '') + '</p>' : '');
   h += '<div class="zahlen"><div class="zahl">diese Woche<b>' + dieseWoche + ' fertig</b></div>'
     + '<div class="zahl">Einträge gesamt<b>' + log.length + '</b></div>'
     + '<div class="zahl">letzte Einheit<b>' + (letzte ? fmt(letzte.d) : '–') + '</b></div>'
@@ -239,6 +241,16 @@ function handyKnoepfe(){
 }
 // Plan in der App ansehen – reine Ansicht (coach=1): nichts merken, nichts senden
 function planAdresse(link){ return (HANDY ? 'index.html' : (window.OGT_APP_ADRESSE || '')) + '?coach=1#' + link; }
+// Persönlicher Link mit Begleittext für WhatsApp (nur Handy-Übersicht, Athletinnen-Pläne); wird erst nach dem Entschlüsseln gebaut
+function waLink(link){
+  var text = 'Hi! Hier ist dein persönlicher Link zur neuen Trainings-App: ' + new URL('./', location.href).href + '#' + link + '\n\n'
+    + '1. Link antippen – die App öffnet sich mit deinem Plan und allen bisherigen Einträgen.\n'
+    + '2. Auf den Home-Bildschirm legen – iPhone (Safari): Teilen-Symbol → „Zum Home-Bildschirm“. Android (Chrome): ⋮ oben rechts → „App installieren“ oder „Zum Startbildschirm hinzufügen“.\n'
+    + '3. Ab jetzt immer über das Symbol öffnen. Fragt die App beim ersten Mal nach dem Link: diesen Link hier kopieren und einfügen.\n'
+    + '4. Nach jedem Training „Training speichern“ – fertig.\n\n'
+    + 'Den alten Plan bitte nicht mehr benutzen, und den Link nicht weitergeben – er ist nur für dich. Wenn etwas hakt, sag kurz Bescheid.';
+  return 'https://wa.me/?text=' + encodeURIComponent(text);
+}
 // Leiste zum Umschalten zwischen den Plänen
 function leiste(keys, daten){
   if (keys.length < 2) return '';
@@ -305,6 +317,8 @@ async function los(){
   // „Mein Training“ öffnet Ollis eigenen Plan direkt (die App merkt ihn sich dann) – kein Link nötig
   var eigen = Object.keys(PLAENE).filter(function(k){ return PLAENE[k].eigen && PLAENE[k].link; })[0];
   if (HANDY && eigen) document.getElementById('training').href = './#' + PLAENE[eigen].link;
+  // Die erfundenen Testpläne (test_…) brauchen nur die automatischen Prüfungen, in Ollis Übersicht erscheinen sie nicht (Wunsch Olli, 08.11.2026)
+  if (!/[?&]tests=1(&|$)/.test(location.search)) Object.keys(PLAENE).forEach(function(k){ if (/^test_/.test(PLAENE[k].programm || '')){ delete PLAENE[k]; delete daten[k]; } });
   // auch Pläne ohne Rückmeldung zeigen, damit sich jeder Plan ansehen lässt
   Object.keys(PLAENE).forEach(function(k){ if (!daten[k]) daten[k] = { log: {}, tests: {}, extra: {}, zuletzt: '' }; });
   var keys = Object.keys(daten).sort(function(a, b){ return daten[a].zuletzt < daten[b].zuletzt ? 1 : (daten[a].zuletzt > daten[b].zuletzt ? -1 : ((PLAENE[a] || {}).titel || a).localeCompare((PLAENE[b] || {}).titel || b)); });
