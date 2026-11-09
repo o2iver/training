@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version e739d94cc4
+/*! O.G. Trainings-App · Grundgerüst · Version 0938e6a4b2
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -9,6 +9,7 @@
 var MERK = 'ogt:plan';                                  // zuletzt geöffneter Plan auf diesem Gerät
 var LINK_RE = /([a-z0-9]{12})\.([A-Za-z0-9_-]{43})/;   // Kennung.Schlüssel
 var COACH = /[?&]coach=1(&|$)/.test(location.search);  // „Plan ansehen“ aus Ollis Übersicht: nur ansehen – nichts merken, nichts senden
+var COACH_DATEN = 'ogt:coach-daten', COACH_ANGEKOMMEN = null;   // was „Plan ansehen“ aus der Handy-Übersicht mitbringt (Anzahl Einträge, null = nichts mitgebracht)
 var IMPRESSUM = 'https://og-physiotherapie.de/impressum/';   // Impressum auf Ollis Website (O.G. Physiotherapie)
 
 function b64uBytes(s){
@@ -167,7 +168,8 @@ function rmStart(id, C){
 // Wohin die App automatisch sendet – für die Hinweistexte
 function rmWohin(self, ther){ return self ? 'in deine Übersicht' : 'an ' + ther; }
 function rmBanner(self, ther){
-  if (COACH) return 'Coach-Ansicht: Hier siehst du den Plan so, wie die Athletin ihn sieht – nur zum Ansehen, nichts wird gespeichert oder gesendet.';
+  if (COACH) return 'Coach-Ansicht: ' + (COACH_ANGEKOMMEN != null ? 'Hier siehst du den Plan so, wie die Athletin ihn sieht, mit allen Einträgen, die bisher angekommen sind'
+    : (self ? 'Hier siehst du deinen Plan' : 'Hier siehst du den Plan nur mit dem Stand vom Umstieg, neue Einheiten stehen in der Übersicht')) + ' – nur zum Ansehen, nichts wird gespeichert oder gesendet.';
   if (!RM) return 'Deine Einträge bleiben auf diesem Gerät' + (self ? '.' : ' – schick sie mit „Per WhatsApp schicken“ an ' + ther + '.');
   return 'Deine Einträge bleiben auf diesem Gerät und gehen nach jeder Einheit verschlüsselt ' + rmWohin(self, ther) + '.';
 }
@@ -254,6 +256,29 @@ function exStart(){
   }
 }
 
+// „Plan ansehen“ in der Handy-Übersicht legt die dort entschlüsselten Einträge dieses Plans in den Sitzungsspeicher (gleicher Tab, gleiche Adresse).
+// Sie kommen nur für diese Ansicht zum Stand dazu; auf dem Gerät gespeichert oder gesendet wird nichts. Ollis eigener Plan liegt ohnehin auf seinem Handy.
+function coachEintraegeDazu(C, id){
+  if (C.inhalt.SELF) return;
+  var p = null;
+  try { p = JSON.parse(sessionStorage.getItem(COACH_DATEN) || 'null'); } catch (e) {}
+  if (!p || p.i !== id) return;
+  var st = C.stand = C.stand || {}, n = 0;
+  if (!st.log || typeof st.log !== 'object') st.log = {};
+  if (!Array.isArray(st.tests)) st.tests = [];
+  (Array.isArray(p.l) ? p.l : []).forEach(function(e){
+    if (!e || !e.s) return;
+    if (!st.log[e.s] || (+e.t || 0) >= (+st.log[e.s].t || 0)){ st.log[e.s] = e; n++; }
+  });
+  (Array.isArray(p.t) ? p.t : []).forEach(function(t){
+    if (!t || !t.id) return;
+    var i = -1; st.tests.forEach(function(x, j){ if (x && x.id === t.id) i = j; });
+    if (i < 0) st.tests.push(t);
+    else if ((+t.t || 0) >= (+st.tests[i].t || 0)) st.tests[i] = t;
+  });
+  COACH_ANGEKOMMEN = n;
+}
+
 function starten(){
   var ausLink = planAus(location.hash), p = ausLink || gemerkt();
   if (!p){ karte('Dein Trainingsplan', 'Öffne den Link aus deiner Nachricht – oder füge ihn hier ein.', true); return; }
@@ -262,6 +287,7 @@ function starten(){
     if (!COACH) merken(p);
     document.title = (COACH ? 'Ansicht · ' : '') + (C.inhalt.TITLE || 'Training') + ' · O.G. Physiotherapie';
     if (!RM || C.rueckmeldung === false || COACH) RM = null;
+    if (COACH) coachEintraegeDazu(C, p.id);
     run(C);
     rmStart(p.id, C);
     if (COACH){ var c = document.createElement('div'); c.className = 'ogt-coach'; c.textContent = 'Coach-Ansicht · nur ansehen'; document.body.appendChild(c); }
@@ -669,7 +695,7 @@ function allTests(){
 }
 // Was der Plan schon genauso (oder neuer) hat, wird vom Gerät entfernt – danach gilt der Plan.
 function applyLocal(){
-  if (MODE !== 'reader') return;
+  if (MODE !== 'reader' || COACH) return;   // Coach-Ansicht: auf dem Gerät nichts verändern
   var base = normalize(parseJSON(ORIG_TEXT));
   var loc = localLog(), ch = false;
   Object.keys(loc).forEach(function(k){ var b = base.log[k]; if (b && b.t >= loc[k].t){ delete loc[k]; ch = true; } });
