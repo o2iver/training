@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version ea6fcb421f
+/*! O.G. Trainings-App · Grundgerüst · Version e739d94cc4
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -392,6 +392,7 @@ var LEICHT = I.LEICHT || { ab: 2, stufen: 1 };   // „Deutlich zu leicht“: ab
 var SA_FELDER = [['sl', 'Schlaf', '1 = sehr schlecht', '5 = sehr gut'], ['mk', 'Muskelkater', '1 = sehr stark', '5 = keiner'], ['sr', 'Stress', '1 = sehr viel', '5 = keiner']];   // Kurze Selbstauskunft vor dem Training (08.11.2026): nur zum Mitlesen, keine Automatik
 var GD_PCT = I.GD_PCT || 0; // { head, x: { Übung: 'Text' } } – Zusatzübungen, die danach für sich laufen (z. B. Bizeps)
 var HOLD = I.HOLD || null;             // { back|hip|arm: { Übung: 1 } } – Gewichtsvorschlag halten, wenn sich das bei der letzten Einheit mit 3 oder mehr gemeldet hat
+var HOLD_GEZIELT = I.HOLD_GEZIELT || 0; // 1 = eine Beschwerde ab 3 bremst die Steigerung nur bei den Übungen, die laut HOLD zu diesem Bereich gehören; 0 = jede Beschwerde bremst alle Übungen
 var ORIENT = I.ORIENT || null;         // { head, text, refs, tail } – Orientierungswert (SQ_REF × Körpergewicht) im Kraft-Test – fehlt = aus
 var TICK_LBL = I.TICK_LBL || 'Sprünge & Co.';
 var WARM_LBL = I.WARM_LBL || 'Aufwärmen & Schulter';
@@ -764,6 +765,17 @@ var CHK = { sq: 1, bench: 1, dl: 1 };
 // Gewichte laut Plan (aus dem Kalender) mit Ollis Regeln: RPE 9+ → Gewicht wiederholen · weniger genommen → der Plan rückt nach · Beschwerden ab 3 → nicht steigern
 // Die Skala endet bei „4+“: darum zählt 4+ immer, wenn die Vorgabe darunter lag
 function zuLeicht(p, rir){ if (rir == null || !p || p.rlo == null) return false; var oben = p.rhi != null ? p.rhi : p.rlo; return rir > oben && rir >= Math.min(4, oben + LEICHT.ab); }
+// Welche Beschwerde ab 3 aus diesem Eintrag bremst die Übung? Mit HOLD_GEZIELT nur die Bereiche, zu denen die Übung laut HOLD gehört, sonst jede
+function bremsendeBeschwerde(x, e){
+  var gezielt = HOLD_GEZIELT && HOLD, best = null;
+  [['back', BACK_LBL, e.rb, e.ro], ['hip', PAIN_LBL, e.k, e.o], ['arm', ARM_LBL, e.sh, null]].forEach(function(r){
+    if (r[0] === 'back' && !BACK_LBL) return;
+    if (gezielt){ var m = HOLD[r[0]] || (r[0] === 'hip' ? HOLD.knee : null); if (!m || !m[x]) return; }
+    var v = Math.max(r[2] == null ? -1 : r[2], r[3] == null ? -1 : r[3]);
+    if (v >= 3 && (!best || v > best.v)) best = { l: r[1], v: v };
+  });
+  return best;
+}
 function planSuggest(x, p, ps){
   var base = p.kg, out = { kg: base, ref: null, msg: 'laut Plan' };
   var lp = lastPerf(x, ps.w), wk = WEEKS[ps.w] || {};
@@ -771,12 +783,12 @@ function planSuggest(x, p, ps){
   var lps = parseSid(lp.sid), lwk = WEEKS[lps.w] || {}, pp = doseFor(lp.sid, x);
   if (lps.w !== ps.w - 1 || phaseOfWeek(lps.w) !== phaseOfWeek(ps.w) || lwk.hold || !pp || pp.kg == null || pp.lo !== p.lo) return out;
   var e = lp.e, top = 0, ex = EX[x]; lp.sets.forEach(function(s){ if (s[0] > top) top = s[0]; });
-  var rir = e.r[x], step = Math.max(0, base - pp.kg);
+  var rir = e.r[x], step = Math.max(0, base - pp.kg), bb = bremsendeBeschwerde(x, e);
   out.ref = top;
   if (rir != null && rir <= 1 && top < base){ out.kg = top; out.msg = 'letztes Mal RPE 9+ (Reserve ' + rir + ') – Gewicht wiederholen'; }
   else if (top < pp.kg){ out.kg = Math.min(base, top + step); out.msg = 'letztes Mal ' + kgText(top, ex) + ' statt ' + kgText(pp.kg, ex) + ' – der Plan rückt eine Stufe nach'; }
-  else if ((e.k >= 3 || e.o >= 3 || e.sh >= 3) && top < base){ out.kg = top; out.msg = 'letztes Mal Beschwerden ab 3 – heute nicht steigern'; }
-  else if (zuLeicht(pp, rir) && top >= pp.kg && top + LEICHT.stufen * (ex.st || 2.5) > base && (e.fr == null || e.fr >= 7) && !(e.k >= 3 || e.o >= 3 || e.sh >= 3) && !(BACK_LBL && (e.rb >= 3 || e.ro >= 3))){ out.kg = top + LEICHT.stufen * (ex.st || 2.5); out.msg = 'letztes Mal deutlich zu leicht (Reserve ' + (rir >= 4 ? '4+' : rir) + ') – heute ' + kgText(out.kg, ex) + ' statt ' + kgText(base, ex); }
+  else if (bb && top < base){ out.kg = top; out.msg = 'letztes Mal ' + bb.l + ' ' + bb.v + '/10 – heute nicht steigern'; }
+  else if (zuLeicht(pp, rir) && top >= pp.kg && top + LEICHT.stufen * (ex.st || 2.5) > base && (e.fr == null || e.fr >= 7) && !bb){ out.kg = top + LEICHT.stufen * (ex.st || 2.5); out.msg = 'letztes Mal deutlich zu leicht (Reserve ' + (rir >= 4 ? '4+' : rir) + ') – heute ' + kgText(out.kg, ex) + ' statt ' + kgText(base, ex); }
   else if (step > 0) out.msg = 'laut Plan · +' + fmtNum(step) + ' kg zur Vorwoche';
   return out;
 }
@@ -820,7 +832,7 @@ function suggest(x, p, sid){
         var rirL = e.r[x] != null ? e.r[x] : (pp && pp.rlo != null ? pp.rlo : 2), rirOk = rirL >= (pp && pp.rlo != null ? pp.rlo : 0);
         var lowOk = !pp || pp.lo == null || sets.every(function(s){ return s[1] >= pp.lo; });
         var topHit = !!(pp && pp.hi != null && sets.length >= pp.sets && sets.every(function(s){ return s[1] >= pp.hi; }));
-        var good = (e.fr == null || e.fr >= 7) && !(e.k >= 3) && !(e.o >= 3) && !(e.sh >= 3) && !(BACK_LBL && (e.rb >= 3 || e.ro >= 3));
+        var good = (e.fr == null || e.fr >= 7) && !bremsendeBeschwerde(x, e);
         ref = top[0];
         if (pp && pp.lo === p.lo && pp.hi === p.hi){
           if (lowOk && good && zuLeicht(pp, e.r[x])){ load = top[0] + st * LEICHT.stufen; msg = '+' + fmtNum(st * LEICHT.stufen) + ' kg – letztes Mal deutlich zu leicht (Reserve ' + (e.r[x] >= 4 ? '4+' : e.r[x]) + ')'; }
