@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version 1e61af988e
+/*! O.G. Trainings-App · Grundgerüst · Version eac25a06e7
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -842,7 +842,7 @@ function suggest(x, p, sid){
       msg = 'aus deinem ' + EX[ex.src].n + ' berechnet';
       // Aktivierung am Spieltag (Wunsch einer Athletin, 05.11.2026): etwa 60–65 % des geschätzten Maximums, nur Tempo
       if (GD_PCT){
-        var gdl = Math.max(st, Math.round(src.est * GD_PCT / st) * st), cur0 = L()[sid];
+        var gdl = Math.max(st, Math.round(src.est * (ex.gd || GD_PCT) / st) * st), cur0 = L()[sid];   // ex.gd: eigener Anteil je Übung (Olli 11.11.2026)
         if (gdl < load){
           if (gdayOf(ps.w, ps.s) || gameOn((cur0 && cur0.d) || todayISO())){ load = gdl; msg = 'Spieltag: leichter, nur Tempo – aus deinem ' + EX[ex.src].n + ' berechnet'; }
           else gday = gdl;
