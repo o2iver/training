@@ -146,7 +146,9 @@ function planKarte(k, d){
   var h = '<section class="karte" data-plan="' + esc(k) + '"><h2>' + esc(plan.titel) + '</h2><div class="klein">Kennung ' + esc(k)
     + (plan.start ? ' · Start ' + fmt(plan.start) : '') + ' · letzte Rückmeldung ' + esc(fmtZeit(d.zuletzt)) + '</div>'
     + (plan.link ? '<p><a class="knopf leise" data-coach="' + esc(k) + '" href="' + esc(planAdresse(plan.link)) + '">Plan ansehen</a>'
-      + (HANDY && !plan.eigen && !/^TEST/.test(plan.titel) ? ' <a class="knopf" href="' + esc(waLink(plan.link)) + '" target="_blank" rel="noopener">Link per WhatsApp schicken</a>' : '') + '</p>' : '');
+      + (plan.spieltest ? ' <a class="knopf" href="' + esc(testAdresse(plan.link)) + '">Zum Testen öffnen</a>'
+        : (HANDY && !plan.eigen && !/^TEST/.test(plan.titel) ? ' <a class="knopf" href="' + esc(waLink(plan.link)) + '" target="_blank" rel="noopener">Link per WhatsApp schicken</a>' : '')) + '</p>'
+      + (plan.spieltest ? '<p class="klein">Minigame-Testplan – nur für dich zum Ausprobieren. Er wird nicht als dein Plan gemerkt: Über „Übersicht“ und „Mein Training“ kommst du zurück.</p>' : '') : '');
   h += '<div class="zahlen"><div class="zahl">diese Woche<b>' + dieseWoche + ' fertig</b></div>'
     + '<div class="zahl">Einträge gesamt<b>' + log.length + '</b></div>'
     + '<div class="zahl">letzte Einheit<b>' + (letzte ? fmt(letzte.d) : '–') + '</b></div>'
@@ -252,6 +254,8 @@ function handyKnoepfe(){
 }
 // Plan in der App ansehen – reine Ansicht (coach=1): nichts merken, nichts senden
 function planAdresse(link){ return (HANDY ? 'index.html' : (window.OGT_APP_ADRESSE || '')) + '?coach=1#' + link; }
+// Minigame-Testplan wie eine Athletin benutzen (eintragen, Punkte sammeln, spielen) – die App merkt ihn sich nicht als eigenen Plan
+function testAdresse(link){ return (HANDY ? './' : (window.OGT_APP_ADRESSE || '')) + '#' + link; }
 // Persönlicher Link mit Begleittext für WhatsApp (nur Handy-Übersicht, Athletinnen-Pläne); wird erst nach dem Entschlüsseln gebaut
 function waLink(link){
   var text = 'Hi! Hier ist dein persönlicher Link zur neuen Trainings-App: ' + new URL('./', location.href).href + '#' + link + '\n\n'
@@ -339,13 +343,15 @@ async function los(){
   document.getElementById('stand').textContent = (live.text ? live.text.charAt(0).toUpperCase() + live.text.slice(1) : 'Stand: ' + (window.OGT_STAND || '–'))
     + ' · ' + (alle.length - tests) + ' Rückmeldung(en)' + (tests ? ' · Verbindungstest ' + fmtZeit(test) + ' ✓' : '');
   // „Mein Training“ öffnet Ollis eigenen Plan direkt (die App merkt ihn sich dann) – kein Link nötig
-  var eigen = Object.keys(PLAENE).filter(function(k){ return PLAENE[k].eigen && PLAENE[k].link; })[0];
+  var eigen = Object.keys(PLAENE).filter(function(k){ return PLAENE[k].eigen && PLAENE[k].link && !PLAENE[k].spieltest; })[0];
   if (HANDY && eigen) document.getElementById('training').href = './#' + PLAENE[eigen].link;
   // Die erfundenen Testpläne (test_…) brauchen nur die automatischen Prüfungen, in Ollis Übersicht erscheinen sie nicht (Wunsch Olli, 08.11.2026)
   if (!/[?&]tests=1(&|$)/.test(location.search)) Object.keys(PLAENE).forEach(function(k){ if (/^test_/.test(PLAENE[k].programm || '')){ delete PLAENE[k]; delete daten[k]; } });
   // auch Pläne ohne Rückmeldung zeigen, damit sich jeder Plan ansehen lässt
   Object.keys(PLAENE).forEach(function(k){ if (!daten[k]) daten[k] = { log: {}, tests: {}, extra: {}, hb: {}, zuletzt: '' }; });
-  var keys = Object.keys(daten).sort(function(a, b){ return daten[a].zuletzt < daten[b].zuletzt ? 1 : (daten[a].zuletzt > daten[b].zuletzt ? -1 : ((PLAENE[a] || {}).titel || a).localeCompare((PLAENE[b] || {}).titel || b)); });
+  // Minigame-Testpläne immer ans Ende, die echten Pläne zuerst
+  function spt(k){ return (PLAENE[k] || {}).spieltest ? 1 : 0; }
+  var keys = Object.keys(daten).sort(function(a, b){ return spt(a) - spt(b) || (daten[a].zuletzt < daten[b].zuletzt ? 1 : (daten[a].zuletzt > daten[b].zuletzt ? -1 : ((PLAENE[a] || {}).titel || a).localeCompare((PLAENE[b] || {}).titel || b))); });
   var h = leiste(keys, daten);
   if (!keys.length) h += '<section class="karte"><h2>Noch keine Rückmeldungen</h2><p>Sobald in der App „Training speichern“ gedrückt wurde, kommt die Einheit hier an – nach dem nächsten Abholen.</p></section>';
   keys.forEach(function(k){ h += planKarte(k, daten[k]); });

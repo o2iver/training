@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version 881c5d1080
+/*! O.G. Trainings-App · Grundgerüst · Version 32238b6404
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -76,7 +76,7 @@ var MELDUNG = {
 // Die Einträge bleiben zusätzlich auf dem Gerät.
 var RM = {"schluessel":{"kty":"EC","crv":"P-256","x":"6mOTJ7vBuEgtp526G71SoXOjfy4qloVX3_zDNtJYKt0","y":"XbhgbaEzHLfsoZVvbKcS5RM6GAWSnu7Y6Pp_2sg2W4k"},"einwurf":"https://og-training.og-physiotherapie.workers.dev/einwurf"};
 var RM_TEST = /[?&]ogt-test=1(&|$)/.test(location.search);   // nur für tests/run_tests.py: schickt an den Testserver
-var RM_STATUS = { laeuft: false, id: '', self: false, ther: 'Olli' };
+var RM_STATUS = { laeuft: false, id: '', self: false, test: false, ther: 'Olli' };
 var RM_ECDH = { name: 'ECDH', namedCurve: 'P-256' };
 
 function rmB64(bytes){ var s = ''; for (var i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
@@ -154,6 +154,7 @@ function rmStart(id, C){
   if (!RM || C.rueckmeldung === false){ RM = null; return; }
   RM_STATUS.id = id;
   RM_STATUS.self = !!C.inhalt.SELF;
+  RM_STATUS.test = !!(C.inhalt.MINIGAME && C.inhalt.MINIGAME.test);   // Minigame-Testplan: Knopf zurück zur Übersicht
   RM_STATUS.ther = String((C.stand && C.stand.profile && C.stand.profile.ther) || (C.inhalt.DEF && C.inhalt.DEF.ther) || 'Olli').split(' ')[0];
   setTimeout(rmSenden, 1500);
   setInterval(rmSenden, 60000);
@@ -253,7 +254,7 @@ function exStart(){
   k.addEventListener('click', exFenster);
   document.body.appendChild(k);
   document.body.classList.add('ogt-mit-extra');
-  if (RM_STATUS.self && RM.einwurf){   // nur Ollis eigener Plan: Sprung zur Übersicht aller Rückmeldungen (gleiche App)
+  if ((RM_STATUS.self || RM_STATUS.test) && RM.einwurf){   // nur Ollis eigener Plan und seine Testpläne: Sprung zur Übersicht aller Rückmeldungen (gleiche App)
     var u = document.createElement('a');
     u.id = 'ogt-uebersicht-knopf'; u.className = 'ogt-uebersicht-knopf'; u.href = 'uebersicht.html'; u.textContent = 'Übersicht';
     document.body.appendChild(u);
@@ -295,7 +296,8 @@ function starten(){
   if (!p){ karte('Dein Trainingsplan', 'Öffne den Link aus deiner Nachricht – oder füge ihn hier ein.', true); return; }
   laden(p).then(function(C){
     if (!C || C.format !== 'ogt-plan' || !C.inhalt) throw fehler('schluessel');
-    if (!COACH) merken(p);
+    // Minigame-Testpläne (nur für Olli) nicht als „meinen Plan“ merken: beim nächsten Öffnen kommt wieder der eigene Plan
+    if (!COACH && !(C.inhalt.MINIGAME && C.inhalt.MINIGAME.test)) merken(p);
     document.title = (COACH ? 'Ansicht · ' : '') + (C.inhalt.TITLE || 'Training') + ' · O.G. Physiotherapie';
     if (!RM || C.rueckmeldung === false || COACH) RM = null;
     if (COACH) coachEintraegeDazu(C, p.id);
@@ -452,6 +454,7 @@ var STAIR_HEAD = I.STAIR_HEAD || 'Der Weg bis Weihnachten';   // Überschrift de
 var THEME = I.THEME || null;            // { light: {--variable: Farbe}, dark: {…}, deko } – Farbwelt des Plans (aus dem Artefakt); deko: '9m' | 'pfosten' | 'keine'
 var LOGO_SVG = I.LOGO_SVG || '';        // eigener Schriftzug (SVG) oben in der Kopfzeile statt des kleinen Titels
 var TEST_HINT_EXTRA = I.TEST_HINT_EXTRA || '';  // Zusatzsatz im Hinweis „Diese Einheit mit …-Tests“ (z. B. was in Testwochen wegfällt)
+var MINIGAME = I.MINIGAME || null;      // Minigames (Aufgabe 65): { test: 1, spiele: ['siebenmeter', 'parade', 'katze'] } – Punkte, Belohnungen und Spiele aus spiele.js; fehlt = aus
 // ===================== Logik =====================
 var SRC = (function(){
   var st = document.getElementById('fk-style'), ap = document.getElementById('fk-app');
@@ -1830,7 +1833,7 @@ function viewStart(){
     if (SELF) return selfWelcome() + morningCard() + kneeAlert() + todayCard() + selfCard() + (isPro() ? statusCard() + importCard() : '') + stairCard() + profileCard();
     return importCard() + statusCard() + peakCard() + todayCard() + stairCard() + profileCard();
   }
-  return welcomeCard() + msgCard() + morningCard() + spielCard() + kneeAlert() + peakCard() + todayCard() + hbNote() + sendCard() + stairCard();
+  return welcomeCard() + msgCard() + morningCard() + spielCard() + kneeAlert() + peakCard() + todayCard() + miniPlatz() + hbNote() + sendCard() + stairCard();
 }
 
 // ---------- Plan ----------
@@ -2473,6 +2476,7 @@ function renderAll(keepScroll){
   if (keepScroll !== false) window.scrollTo(0, y);
   if (fid){ var f = document.getElementById(fid); if (f){ try { f.focus({ preventScroll: true }); } catch (e) {} } }
   ssSet('fk-ui', uiSnapshot());
+  miniEvent('render');
 }
 function keepFocus(el){
   if (!el || !el.tagName || el === document.body) return false;
@@ -2700,6 +2704,7 @@ function setOk(x, i){
   var sid = UI.sess; if (!sid || !canLog()) return;
   flushNow();
   var e = getEntry(sid) || newEntry(sid), ex = EX[x], nv = ex.t === 'kg' ? 2 : (ex.t === 'tick' ? 0 : 1);
+  var mps = parseSid(sid), mvor = MINIGAME ? miniPflichtFertig(e, mps.w, mps.s) : 0;
   var arr = e.x[x] || []; while (arr.length <= i){ var row = []; for (var q = 0; q < nv; q++) row.push(null); row.push(0); arr.push(row); }
   var s = arr[i], on = !s[nv];
   if (on){
@@ -2713,15 +2718,19 @@ function setOk(x, i){
   s[nv] = on ? 1 : 0; e.x[x] = arr;
   if (!putEntry(e)) return;
   renderAll();
+  if (MINIGAME){ var mnach = miniPflichtFertig(e, mps.w, mps.s); if (mnach > mvor) miniEvent('uebung', { n: mnach - mvor }); }
 }
 function blockOk(gi){
   var sid = UI.sess; if (!sid || !canLog()) return;
   flushNow();
   var ps = parseSid(sid), g = itemGroups(itemsOf(ps.w, ps.s))[gi]; if (!g) return;
-  var e = getEntry(sid) || newEntry(sid);
+  var e = getEntry(sid) || newEntry(sid), mvor = MINIGAME ? miniPflichtFertig(e, ps.w, ps.s) : 0;
   var allOn = g.items.filter(function(it){ return !it.opt; }).every(function(it){ return doneSets(e, it.x).length >= it.p.sets; });
   g.items.forEach(function(it){ if (it.ex.t !== 'tick' || it.opt) return; var arr = []; for (var i = 0; i < it.p.sets; i++) arr.push([allOn ? 0 : 1]); e.x[it.x] = arr; });
-  if (putEntry(e)) renderAll();
+  if (putEntry(e)){
+    renderAll();
+    if (MINIGAME){ var mnach = miniPflichtFertig(e, ps.w, ps.s); if (mnach > mvor) miniEvent('uebung', { n: mnach - mvor }); }
+  }
 }
 function addSet(x){ var k = UI.sess + ':' + x; UI.extra[k] = (UI.extra[k] || 0) + 1; renderAll(); var el = document.getElementById('ex-' + x); if (el){ var ins = el.querySelectorAll('input[data-set]'); if (ins.length){ try { ins[ins.length - (EX[x].t === 'kg' ? 2 : 1)].focus({ preventScroll: true }); } catch (e) {} } } }
 function setRir(x, v){
@@ -2748,6 +2757,7 @@ function finishSession(sid){
   if (hbAn(d)){ var hbw = radio('fin-hbw'), hbe = radio('fin-hbe'); if (hbw){ e.hbw = hbw; if (hbw === 'n') delete e.hbe; else if (hbw === 'v' && hbe != null) e.hbe = +hbe; } }   // Handball, freiwillig
   if (!putEntry(e)) return;
   delete UI.fin[sid];
+  if (!wasDone) miniEvent('fertig', { s: sid });
   if (selfOn()){
     if (!wasDone){ UI.sess = null; UI.tab = 'start'; }
     selfSync(wasDone ? 'Gespeichert – steht im Plan.' : 'Stark! Einheit abgeschlossen und im Plan gespeichert.');
@@ -2993,6 +3003,42 @@ function onKey(ev){
   if (i >= 0 && all[i + 1]) all[i + 1].focus(); else t.blur();
 }
 
+// ---------- Minigames (Aufgabe 65, nur Pläne mit MINIGAME) ----------
+// Punkte, Belohnungen und Spiele stehen in spiele.js – die Datei laden nur Pläne mit MINIGAME. Hier steht nur,
+// was spiele.js lesen darf (fertige Einheiten, geschaffte Wochen), die Signale beim Abhaken und Speichern und
+// der Platz auf der Startseite. Ohne MINIGAME passiert nichts.
+function miniAn(){ return !!MINIGAME && !COACH && canLog(); }
+function miniPlatz(){ return miniAn() ? '<div id="ogt-mini-platz"></div>' : ''; }
+function miniEvent(art, d){ if (!miniAn()) return; try { window.dispatchEvent(new CustomEvent('ogt-mini', { detail: { art: art, d: d || {} } })); } catch (e) {} }
+// Pflicht-Übungen einer Einheit mit mindestens einem geschafften Satz (Alternativen zählen mit, Optionales nicht)
+function miniPflichtFertig(e, w, s){
+  var n = 0; if (!e || !e.x) return 0;
+  itemsOf(w, s).forEach(function(it){
+    if (it.opt) return;
+    var dn = doneSets(e, it.x).length;
+    (ALT_FOR[it.x] || []).forEach(function(a){ dn = Math.max(dn, doneSets(e, a).length); });
+    if (dn > 0) n++;
+  });
+  return n;
+}
+function miniEinheiten(){
+  return entriesSorted().filter(function(e){ return e && e.f && SIDS[e.s]; }).map(function(e){
+    var ps = parseSid(e.s);
+    return { s: e.s, d: entryDate(e), w: ps.w, erledigt: miniPflichtFertig(e, ps.w, ps.s), morgen: e.o != null };
+  });
+}
+function miniWochen(){   // Wochen bis heute, in denen alle Pflicht-Einheiten fertig sind
+  var cw = curWeek(), a = []; if (cw == null) return a;
+  for (var w = 1; w <= Math.min(cw, LAST_WEEK); w++){ var c = weekCount(w); if (c.tot > 0 && c.done >= c.tot) a.push(w); }
+  return a;
+}
+function miniStart(){
+  if (!miniAn() || window.OGT_MINI) return;
+  window.OGT_MINI = { cfg: MINIGAME, id: S.id, titel: TITLE, self: !!SELF, heute: todayISO, einheiten: miniEinheiten, wochen: miniWochen, toast: toast };
+  var sc = document.createElement('script'); sc.src = 'spiele.js?v=32238b6404'; sc.async = true;
+  document.body.appendChild(sc);
+}
+
 // ---------- Start ----------
 var STARTED = false;
 // Farbwelt des Plans: überschreibt die Farben von Training Olli (nur Farbwerte, nichts anderes)
@@ -3052,6 +3098,7 @@ function start(hot){
   if (fl && fl.msg && Date.now() - (fl.at || 0) < 15000) toast(fl.msg);
   window.addEventListener('resize', debounce(drawCharts, 150));
   initCaps();
+  miniStart();
   if (reapply) scheduleSave();
 }
 var HOT = (window.claude && window.claude.hot) || null;
