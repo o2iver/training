@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version a641bab23c
+/*! O.G. Trainings-App · Grundgerüst · Version 881c5d1080
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -823,21 +823,53 @@ function bremsendeBeschwerde(x, e){
   });
   return best;
 }
+// Letzte Leistung ohne Entlastungswochen (für den Aufbau nach einer leichten Woche)
+function lastPerfOhneEntlastung(x, w){
+  var log = L(), best = null;
+  Object.keys(log).forEach(function(k){
+    var ps = parseSid(k); if (!ps || ps.w >= w || (WEEKS[ps.w] || {}).hold) return;
+    var e = log[k], sets = doneSets(e, x).filter(function(s){ return s[0] > 0 && s[1] > 0; }); if (!sets.length) return;
+    var key = pad(ps.w) + '|' + entryDate(e) + '|' + e.t;
+    if (!best || key > best.key) best = { key: key, e: e, sets: sets, sid: k };
+  });
+  return best;
+}
+// Pläne mit festen Gewichten (Ollis Plan). Olli 21.11.2026: „nicht die alten Gewichte aus Berechnungen nehmen, sondern auf dem
+// aktuellsten Wert das Ganze aufbauen“, mit Belastungsmanagement. Basis ist das zuletzt wirklich bewegte Gewicht, der Plan gibt
+// nur den Schritt vor: gleiche Vorgabe → Plan-Schritt in kg, andere Wiederholungen oder Entlastung → Verhältnis der Plan-Gewichte,
+// höchstens etwa +15 %. Bremsen: Reserve 0–1 → Gewicht wiederholen · Beschwerden ab 3 → nicht steigern · deutlich zu leicht → zwei Stufen mehr
 function planSuggest(x, p, ps){
-  var base = p.kg, out = { kg: base, ref: null, msg: 'laut Plan' };
-  var lp = lastPerf(x, ps.w), wk = WEEKS[ps.w] || {};
-  if (!lp || wk.hold) return out;
-  var lps = parseSid(lp.sid), lwk = WEEKS[lps.w] || {}, pp = doseFor(lp.sid, x);
-  if (lps.w !== ps.w - 1 || phaseOfWeek(lps.w) !== phaseOfWeek(ps.w) || lwk.hold || !pp || pp.kg == null || pp.lo !== p.lo) return out;
-  var e = lp.e, top = 0, ex = EX[x]; lp.sets.forEach(function(s){ if (s[0] > top) top = s[0]; });
-  var rir = e.r[x], step = Math.max(0, base - pp.kg), bb = bremsendeBeschwerde(x, e);
-  out.ref = top;
-  if (rir != null && rir <= 1 && top < base){ out.kg = top; out.msg = 'letztes Mal RPE 9+ (Reserve ' + rir + ') – Gewicht wiederholen'; }
-  else if (top < pp.kg){ out.kg = Math.min(base, top + step); out.msg = 'letztes Mal ' + kgText(top, ex) + ' statt ' + kgText(pp.kg, ex) + ' – der Plan rückt eine Stufe nach'; }
-  else if (bb && top < base){ out.kg = top; out.msg = 'letztes Mal ' + bb.l + ' ' + bb.v + '/10 – heute nicht steigern'; }
-  else if (zuLeicht(pp, rir) && top >= pp.kg && top + LEICHT.stufen * (ex.st || 2.5) > base && (e.fr == null || e.fr >= 7) && !bb){ out.kg = top + LEICHT.stufen * (ex.st || 2.5); out.msg = 'letztes Mal deutlich zu leicht (Reserve ' + (rir >= 4 ? '4+' : rir) + ') – heute ' + kgText(out.kg, ex) + ' statt ' + kgText(base, ex); }
-  else if (step > 0) out.msg = 'laut Plan · +' + fmtNum(step) + ' kg zur Vorwoche';
+  var base = p.kg, out = { kg: base, ref: null, msg: 'laut Plan' }, wk = WEEKS[ps.w] || {};
+  var lp = wk.hold ? lastPerf(x, ps.w) : (lastPerfOhneEntlastung(x, ps.w) || lastPerf(x, ps.w));
+  if (!lp) return out;
+  var ex = EX[x], st = ex.st || 2.5, pp = doseFor(lp.sid, x), e = lp.e, top = 0;
+  lp.sets.forEach(function(s){ if (s[0] > top) top = s[0]; });
+  if (!(top > 0) || !pp || !!pp.side !== !!p.side) return out;   // beidbeinig ↔ einbeinig: nicht vergleichbar
+  var rir = e.r[x], bb = bremsendeBeschwerde(x, e), lwk = WEEKS[parseSid(lp.sid).w] || {}, kg, msg;
+  if (pp.kg != null){
+    var gleich = pp.lo === p.lo && pp.hi === p.hi && !wk.hold && !lwk.hold, schritt = base - pp.kg;
+    if (gleich || ex.add || !(pp.kg > 0)){ kg = top + schritt; msg = 'laut Plan-Schritt (' + (schritt >= 0 ? '+' : '') + fmtNum(schritt) + ' kg) auf dein letztes Gewicht ' + kgText(top, ex); }
+    else { kg = top * base / pp.kg; msg = 'laut Plan umgerechnet auf dein letztes Gewicht ' + kgText(top, ex); }
+  } else {
+    if (ex.add || p.lo == null) return out;
+    var last = lp.sets[lp.sets.length - 1], rirL = rir != null ? rir : (pp.rlo != null ? pp.rlo : 2);
+    var tReps = (p.lo + (p.hi != null ? p.hi : p.lo)) / 2, tRir = p.rlo != null ? (p.rlo + (p.rhi != null ? p.rhi : p.rlo)) / 2 : 2;
+    kg = e1rm(last[0], last[1], rirL) / (1 + (tReps + tRir) / 30);
+    msg = 'aus deinem letzten Gewicht ' + kgText(top, ex) + ' umgerechnet';
+  }
+  kg = roundTo(Math.min(kg, Math.max(top * 1.15, top + st)), st);
+  if (rir != null && rir <= 1 && kg > top){ kg = top; msg = 'letztes Mal RPE 9+ (Reserve ' + rir + ') – Gewicht wiederholen'; }
+  else if (bb && kg > top){ kg = top; msg = 'letztes Mal ' + bb.l + ' ' + bb.v + '/10 – heute nicht steigern'; }
+  else if (!wk.hold && zuLeicht(pp, rir) && kg < top + LEICHT.stufen * st && (e.fr == null || e.fr >= 7) && !bb){ kg = top + LEICHT.stufen * st; msg = 'letztes Mal deutlich zu leicht (Reserve ' + (rir >= 4 ? '4+' : rir) + ') – heute ' + kgText(kg, ex) + ' statt ' + kgText(base, ex); }
+  out.kg = ex.add ? Math.max(0, kg) : Math.max(st, kg); out.ref = top; out.msg = msg;
   return out;
+}
+// Vorhandene Hanteln (EX.kgs, z. B. Flügelkraft im neuen Gym, 21.11.2026): das nächste Gewicht darunter, nie unter die leichteste
+function hantel(kg, liste){
+  var a = liste.slice().sort(function(x, y){ return x - y; }), unten = a.filter(function(v){ return v <= kg + 1e-6; });
+  if (!unten.length) return { kg: a[0], msg: 'leichteste Hantel ' + fmtNum(a[0]) + ' kg – Wiederholungen so wählen, dass die Reserve stimmt' };
+  var v = unten[unten.length - 1];
+  return { kg: v, msg: v === a[a.length - 1] && kg > v + 1e-6 ? 'schwerste Hantel ' + fmtNum(v) + ' kg – mehr Wiederholungen statt mehr Gewicht' : '' };
 }
 function suggest(x, p, sid){
   if (SUGGEST === 'e1rm' || SUGGEST === 'e1rm-plus') return suggestE1(x, p, sid);
@@ -910,6 +942,7 @@ function suggest(x, p, sid){
   if (fr != null && fr <= 3){ load = ex.add ? floorTo(load * 0.5, st) : floorTo(load * 0.9, st); msg = ex.add ? 'Frische rot: Zusatzgewicht etwa halbieren' : 'Frische rot: etwa 10 % leichter'; }
   else if (fr != null && fr <= 6 && ref != null && load > ref){ load = ref; msg = 'Frische gelb: heute nicht steigern'; }
   load = ex.add ? Math.max(0, load) : Math.max(st, load);
+  if (Array.isArray(ex.kgs) && ex.kgs.length){ var hs = hantel(load, ex.kgs); load = hs.kg; if (hs.msg) msg = msg ? msg + ' · ' + hs.msg : hs.msg; }
   return { kg: load, src: src, msg: msg, hold: hold, gday: gday };
 }
 // Gewichtsvorschlag wie in Paradekraft: Kraft aus dem letzten Satz (bzw. Kraft-Test) geschätzt, auf die neue Vorgabe
@@ -936,6 +969,7 @@ function suggestE1(x, p, sid){
   if (fr != null && fr <= 3){ load = floorTo(load * 0.9, st); msg = 'Frische rot: etwa 10 % leichter'; }
   else if (fr != null && fr <= 6 && src.kind === 'log' && load > src.lastKg){ load = src.lastKg; msg = 'Frische gelb: heute nicht steigern'; }
   load = Math.max(st, roundTo(load, st));
+  if (Array.isArray(ex.kgs) && ex.kgs.length){ var he = hantel(load, ex.kgs); load = he.kg; if (he.msg) msg = msg ? msg + ' · ' + he.msg : he.msg; }
   return { kg: load, src: src, hold: hold, msg: msg };
 }
 function strengthSrcE1(x, w){
