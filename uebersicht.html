@@ -172,6 +172,16 @@ function planKarte(k, d){
       + extra.map(function(x){ return '<tr><td class="w">' + fmt(x.d) + '</td><td>' + (x.m != null ? esc(x.m) : '–') + '</td><td class="frei">' + esc(x.n) + '</td></tr>'; }).join('')
       + '</tbody></table></div>';
   }
+  // Handball (Aufgabe 58): Training vor/nach der Krafteinheit und Spiele, je mit Anstrengung 0–10
+  var hb = [];
+  log.forEach(function(e){ if (e.hbw === 'v' || e.hbw === 'd') hb.push({ d: e.d, was: 'Training ' + (e.hbw === 'v' ? 'vor' : 'nach') + ' der Krafteinheit', a: e.hbe }); });
+  Object.keys(d.hb || {}).forEach(function(i){ var x = d.hb[i]; if (x && x.d) hb.push({ d: x.d, was: x.ns ? 'Spiel – nicht gespielt' : 'Spiel', a: x.e, ns: x.ns }); });
+  hb.sort(function(a, b){ return (b.d || '') < (a.d || '') ? -1 : ((b.d || '') > (a.d || '') ? 1 : 0); });
+  if (hb.length){
+    h += '<h3>Handball</h3><div class="tabelle"><table><thead><tr><th>Datum</th><th>Was</th><th>Anstrengung</th></tr></thead><tbody>'
+      + hb.map(function(x){ return '<tr><td class="w">' + fmt(x.d) + '</td><td>' + esc(x.was) + '</td><td>' + (x.ns ? '–' : (x.a != null ? wert(x.a, false) : 'noch offen')) + '</td></tr>'; }).join('')
+      + '</tbody></table></div>';
+  }
   var tests = Object.keys(d.tests).map(function(i){ return d.tests[i]; });
   if (tests.length){
     h += '<h3>Tests</h3><ul>' + tests.map(function(t){
@@ -260,7 +270,7 @@ function coachKlick(ev){
   var k = a.getAttribute('data-coach'), d = DATEN[k];
   try {
     sessionStorage.removeItem('ogt:coach-daten');
-    if (d && !(PLAENE[k] || {}).eigen) sessionStorage.setItem('ogt:coach-daten', JSON.stringify({ i: k, l: Object.keys(d.log).map(function(s){ return d.log[s]; }), t: Object.keys(d.tests).map(function(i){ return d.tests[i]; }) }));
+    if (d && !(PLAENE[k] || {}).eigen) sessionStorage.setItem('ogt:coach-daten', JSON.stringify({ i: k, l: Object.keys(d.log).map(function(s){ return d.log[s]; }), t: Object.keys(d.tests).map(function(i){ return d.tests[i]; }), hb: Object.keys(d.hb || {}).map(function(i){ return d.hb[i]; }) }));
   } catch (e) {}
 }
 // Leiste zum Umschalten zwischen den Plänen
@@ -319,10 +329,11 @@ async function los(){
     try { obj = await auspacken(sortiert[i].code); } catch (e) { kaputt++; continue; }
     if (!obj || !obj.i) { kaputt++; continue; }
     if (obj.verbindungstest){ tests++; test = sortiert[i].empfangen || test; continue; }   // Testsignal aus verbindungstest.py, ohne Trainingsdaten
-    var d = daten[obj.i] || (daten[obj.i] = { log: {}, tests: {}, extra: {}, zuletzt: '' });
+    var d = daten[obj.i] || (daten[obj.i] = { log: {}, tests: {}, extra: {}, hb: {}, zuletzt: '' });
     (Array.isArray(obj.l) ? obj.l : []).forEach(function(e){ if (e && e.s){ var b = d.log[e.s]; if (!b || e.t > b.t) d.log[e.s] = e; } });
     (Array.isArray(obj.t) ? obj.t : []).forEach(function(t){ if (t && t.id){ var b = d.tests[t.id]; if (!b || t.t > b.t) d.tests[t.id] = t; } });
     (Array.isArray(obj.extra) ? obj.extra : []).forEach(function(x){ if (x && x.id){ var b = d.extra[x.id]; if (!b || x.t > b.t) d.extra[x.id] = x; } });
+    (Array.isArray(obj.hb) ? obj.hb : []).forEach(function(x){ if (x && x.id){ var b = d.hb[x.id]; if (!b || x.t > b.t) d.hb[x.id] = x; } });
     if ((sortiert[i].empfangen || '') > d.zuletzt) d.zuletzt = sortiert[i].empfangen || '';
   }
   document.getElementById('stand').textContent = (live.text ? live.text.charAt(0).toUpperCase() + live.text.slice(1) : 'Stand: ' + (window.OGT_STAND || '–'))
@@ -333,7 +344,7 @@ async function los(){
   // Die erfundenen Testpläne (test_…) brauchen nur die automatischen Prüfungen, in Ollis Übersicht erscheinen sie nicht (Wunsch Olli, 08.11.2026)
   if (!/[?&]tests=1(&|$)/.test(location.search)) Object.keys(PLAENE).forEach(function(k){ if (/^test_/.test(PLAENE[k].programm || '')){ delete PLAENE[k]; delete daten[k]; } });
   // auch Pläne ohne Rückmeldung zeigen, damit sich jeder Plan ansehen lässt
-  Object.keys(PLAENE).forEach(function(k){ if (!daten[k]) daten[k] = { log: {}, tests: {}, extra: {}, zuletzt: '' }; });
+  Object.keys(PLAENE).forEach(function(k){ if (!daten[k]) daten[k] = { log: {}, tests: {}, extra: {}, hb: {}, zuletzt: '' }; });
   var keys = Object.keys(daten).sort(function(a, b){ return daten[a].zuletzt < daten[b].zuletzt ? 1 : (daten[a].zuletzt > daten[b].zuletzt ? -1 : ((PLAENE[a] || {}).titel || a).localeCompare((PLAENE[b] || {}).titel || b)); });
   var h = leiste(keys, daten);
   if (!keys.length) h += '<section class="karte"><h2>Noch keine Rückmeldungen</h2><p>Sobald in der App „Training speichern“ gedrückt wurde, kommt die Einheit hier an – nach dem nächsten Abholen.</p></section>';
