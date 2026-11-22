@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Minigames (Test, Aufgabe 65) · Version 55e93a8358
+/*! O.G. Trainings-App · Minigames (Test, Aufgabe 65) · Version f6cfe0d535
  * Lädt nur, wenn ein Plan MINIGAME hat (miniStart in app_template.js) – die echten Pläne laden diese Datei nicht.
  * Punkte (⭐) gibt es nur fürs Training und fürs Eintragen: gespeicherte Einheit, Pflicht-Übungen mit mindestens einem
  * Satz, Morgen-Check, ganze Woche – dazu geheime Boni fürs Monitoring (Kurz-Check, Handball, Spieltag, Notiz,
@@ -1330,7 +1330,7 @@ function ergebnisKarte(html, dauer){
 // ===================== Startseite: Punkte-Karte =====================
 var SPRUECHE = ['Let’s Miau!', 'Auf!', 'Miau!', 'Lass knacken!', 'Schnurr …', 'Gut gemacht!', '*blinzel*'];
 function sprueche(){ var t = meinTier(); return t === 'katze' ? SPRUECHE : [TIERE[t].ruf, 'Auf!', 'Lass knacken!', 'Gut gemacht!', '*blinzel*', 'Hehe!']; }
-function streichelSpruch(){ var l = frech() && Math.random() < 0.2 ? FRECH : sprueche(); return l[Math.floor(Math.random() * l.length)]; }
+function streichelSpruch(){ var l = frech() && Math.random() < 0.2 ? frechSatz() : sprueche(); return einsetzen(l[Math.floor(Math.random() * l.length)]); }
 function karteFuellen(st){
   var platz = document.getElementById('ogt-mini-platz'); if (!platz) return;
   st = st || stand();
@@ -1507,26 +1507,46 @@ function nameSpeichern(wert){
 // Läuft unten im Bild mit, solange eine Einheit offen ist: begrüßt, nennt die nächste Übung mit dem „Achte auf“-Hinweis
 // aus dem Plan (nichts Neues erfunden), feiert jeden Satz und jede fertige Übung. Antippen geht durch ihn hindurch,
 // er blockiert nie einen Knopf. Ausschaltbar im Reiter „Spiele“.
-var BG = { el: null, bild: null, blase: null, sid: '', text: '', wander: 0, blaseZeit: 0, aktionZeit: 0, bildZeit: 0, gesagt: {}, letzter: '' };
+var BG = { el: null, bild: null, blase: null, sid: '', text: '', wander: 0, blaseZeit: 0, aktionZeit: 0, bildZeit: 0, ansageZeit: 0, gesagt: {}, letzter: '' };
 var SATZ_SPRUECHE = ['Stark!', 'Sauber!', 'Weiter so!', 'Komm, nächster Satz!', 'Auf!', 'Läuft!', 'Lass knacken!'];
+// ab und zu „ein richtig alter Satz“ (Olli 22.11.2026: „es darf auch lustig sein“) – etwa jede 7. Abhak-Sache ohne Fluchen
+var ALTE_SAETZE = ['Donnerwetter!', 'Holla, die Waldfee!', 'Potz Blitz!', 'Ich glaub, mein Schwein pfeift!', 'Da brat mir einer ’nen Storch!', 'Heidewitzka!', 'Ei der Daus!', 'Sapperlot – stark!'];
 var SATZ_NAME = ['Stark, {name}!', 'Komm, {name}, nächster Satz!', '{name}, du Maschine!'];
 var UEBUNG_SPRUECHE = ['Übung geschafft! 💪', 'Abgehakt!', 'Wie ein Profi!', 'Weg damit!'];
 var UEBUNG_NAME = ['Abgehakt, {name}! 💪', 'Wie ein Profi, {name}!'];
+// Jugendsprache ohne Schimpfwörter (Olli: „die sind alle Anfang 20 … checkst du und safe und Digger und Alter und Junge … Sis“) –
+// in Plänen mit MINIGAME.sprache = "jung" (Durchbruchkraft, Paradekraft) schon im normalen Modus dabei
+var SATZ_JUNG = ['Safe stark!', 'Läuft bei dir, {sis}!', 'Gönn dir!', 'Stark, Digga!', 'Wild, Alter!', '{ehre}!', 'Slay, {sis}!', 'Sheesh!',
+  'No cap – stark!', 'Lowkey Weltklasse.', 'Mies stark!', 'Junge, läuft!'];
+var SATZ_JUNG_NAME = ['{name}, safe Weltklasse!', 'Digga {name}, was geht ab?!', '{name}, du Maschine – no cap!'];
+var UEBUNG_JUNG = ['Übung durch – safe!', 'Check – nächste!', 'Die Übung ist Geschichte, Digga!', 'Abgehakt, Alter – stark!'];
 // Sprüche ohne Filter (Olli 22.11.2026: „weil die Athletinnen mich als eher sehr viel fluchenden Physio kennen“).
 // Nur in Plänen mit MINIGAME.fluchen, gekauft und angeschaltet – und nur bei jeder 4. bis 6. Abhak-Sache („der muss ja nicht
-// die ganze Zeit rumfluchen“). Ollis Vorgaben: Klassiker wie Scheiß, verfickt, Wichse, Dreck, Junge, fett geil, ultra, mega und
-// Jugendsprache; keine ekligen Wörter.
+// die ganze Zeit rumfluchen“). Ollis Vorgaben: verfickt, Scheiße, leck mich, Dreck, Junge, fett geil, ultra, mega, dazu alte Sätze;
+// das W-Wort ausdrücklich raus (Olli 22.11.), keine ekligen Wörter. {sis}/{ehre} werden je nach Plan zu Sis/Ehrenfrau bzw. Bro/Ehrenmann.
 var FRECH = [
-  'SCHEIßE JA! – So muss das laufen!', 'Verfickt gut gemacht!', 'Scheiß Maschine!!!! Let’s GOOOO!',
-  'Verfickt geil!', 'Scheiße, ist das geil!', 'Junge, so eine Wichse – du hast das richtig abgerissen!', 'Fett geil, Junge!',
-  'Scheiß die Wand an, ist das stark!', 'Verdammte Axt, läuft bei dir!', 'Heilige Scheiße, was ein Satz!', 'Ultra stark, verdammt!',
-  'Mega abgerissen!', 'Krasser Scheiß!', 'Verfickte Scheiße, bist du stark!', 'Junge, Junge, Junge – was ’ne Maschine!',
-  'Fett abgerissen – Ehre!', 'Sheesh! Das war ultra!', 'No cap – das war krass!', 'Digga, was war DAS denn?!', 'So ein Dreck – viel zu leicht für dich!'
+  'SCHEIßE JA! – So muss das laufen!', 'Verfickt gut gemacht!', 'Scheiß Maschine!!!! Let’s GOOOO!', 'Verfickt geil!', 'Scheiße, ist das geil!',
+  'Fett geil, Junge!', 'Scheiß die Wand an, ist das stark!', 'Verdammte Axt, läuft bei dir!', 'Heilige Scheiße, was ein Satz!', 'Ultra stark, verdammt!',
+  'Mega abgerissen!', 'Krasser Scheiß!', 'Verfickte Scheiße, bist du stark!', 'Junge, Junge, Junge – was ’ne Maschine!', 'Leck mich am Arsch, war das gut!',
+  'Leck mich fett – was ein Satz!', 'Ach leck mich doch – so stark!', 'Fuck, bist du stark!', 'So ein Dreck – viel zu leicht für dich!', 'Heiliger Strohsack – verdammt stark!'
 ];
-var FRECH_NAME = ['Verfickt gut gemacht, {name}!', 'SCHEIßE JA, {name}! – So muss das laufen!', '{name}, du verfickte Maschine!', 'Junge, {name}, so eine Wichse!', 'Fett geil, {name}!'];
-var FRECH_UEBUNG = ['Übung weggeballert – Scheiße, war das gut!', 'Abgerissen, verfickt nochmal!', 'Erledigt – fett geil!', 'Die Übung hast du zerlegt, Junge!', 'Weg mit dem Dreck – nächste!'];
+var FRECH_NAME = ['Verfickt gut gemacht, {name}!', 'SCHEIßE JA, {name}! – So muss das laufen!', '{name}, du verfickte Maschine!', 'Fett geil, {name}!', 'Leck mich am Arsch, {name} – war das gut!'];
+var FRECH_UEBUNG = ['Übung weggeballert – Scheiße, war das gut!', 'Abgerissen, verfickt nochmal!', 'Erledigt – fett geil!', 'Die Übung hast du zerlegt, Junge!', 'Weg mit dem Dreck – nächste!', 'Leck mich – die Übung ist durch!'];
+// Jugendsprache mit Fluchen – nur bei „Sprüche ohne Filter“ in Plänen mit sprache "jung"
+var FRECH_JUNG = [
+  'Fuck, {sis} – du ballerst!', 'Alter, was war DAS denn?! Scheiße, stark!', 'Digga, verfickt stark!', 'Bruder, was ist da los – so verdammt stark!',
+  'Safe verfickt gut, Digga!', 'Fuck, Alter – Weltklasse!', 'Leck mich, Digga – war das gut!', 'Scheiße, {sis}, du bist so krass!',
+  'Sheesh – verfickt nochmal, war das ultra!', 'Checkst du, wie scheißgut du bist?'
+];
+var FRECH_JUNG_NAME = ['Fuck, {name} – safe Weltklasse!', 'Digga {name}, leck mich – war das gut!', '{sis} {name}, du ballerst – verfickt stark!'];
+var FRECH_JUNG_UEBUNG = ['Digga, die Übung ist durch – fett geil!', 'Übung zerlegt, Alter – leck mich!', 'Fuck, die Übung ist Geschichte!'];
 // Jugendsprache am Ende eines „Achte auf“-Hinweises – nur in der Sprechblase, der Text im Plan bleibt, wie er ist
 var CHECK = ['Checkst du?', 'Check?', 'Klar soweit?', 'Checkst du, oder was?'];
+var CHECK_JUNG = ['Safe?', 'Verstanden, Digga?'];
+function jung(){ return CFG.sprache === 'jung'; }
+function frechSatz(){ return jung() ? FRECH.concat(FRECH_JUNG) : FRECH; }
+function frechName(){ return jung() ? FRECH_NAME.concat(FRECH_JUNG_NAME) : FRECH_NAME; }
+function einsetzen(s){ return String(s).replace(/\{name\}/g, spitzname()).replace(/\{sis\}/g, A.self ? 'Bro' : 'Sis').replace(/\{ehre\}/g, A.self ? 'Ehrenmann' : 'Ehrenfrau'); }
 var ALLES_GESCHAFFT = 'Alles geschafft – jetzt „Training speichern“! 🎉';
 function spruch(normal, mitName, frechPool){
   var name = spitzname(), istFrech = false, pool;
@@ -1535,13 +1555,20 @@ function spruch(normal, mitName, frechPool){
     BG.frechIn--;
     if (BG.frechIn <= 0){ istFrech = true; BG.frechIn = 4 + Math.floor(Math.random() * 3); }
   }
-  if (istFrech){ pool = (frechPool || FRECH).slice(); if (name) pool = pool.concat(FRECH_NAME); }
+  if (istFrech){ pool = (frechPool || frechSatz()).slice(); if (name) pool = pool.concat(frechName()); }
+  else if (Math.random() < 0.15) pool = ALTE_SAETZE.slice();
   else { pool = normal.slice(); if (name) pool = pool.concat(mitName); }
   var s = pool[Math.floor(Math.random() * pool.length)];
   if (s === BG.letzter && pool.length > 1) s = pool[(pool.indexOf(s) + 1) % pool.length];
   BG.letzter = s; BG.warFrech = istFrech;
-  return s.replace(/\{name\}/g, name);
+  return einsetzen(s);
 }
+// normale Töpfe je nach Plan: junge Sprache kommt dazu
+function satzTopf(){ return jung() ? SATZ_SPRUECHE.concat(SATZ_JUNG) : SATZ_SPRUECHE; }
+function satzNameTopf(){ return jung() ? SATZ_NAME.concat(SATZ_JUNG_NAME) : SATZ_NAME; }
+function uebungTopf(){ return jung() ? UEBUNG_SPRUECHE.concat(UEBUNG_JUNG) : UEBUNG_SPRUECHE; }
+// Lesezeit der Sprechblase (Olli 22.11.2026: der Spruch nach dem letzten Satz war zu schnell weg): gut 1 s plus 55 ms je Zeichen
+function lesezeit(t, min, max){ return Math.round(begrenzt(1000 + String(t || '').length * 55, min, max)); }
 function begruessung(){ var r = TIERE[meinTier()].ruf, n = spitzname(); return n ? 'Hey ' + n + '! ' + r : r; }
 // „Alles geschafft“ nur zweimal je Einheit (Olli 22.11.2026): wenn das Haupttraining fertig ist und noch einmal,
 // wenn auch alle Zusatzübungen durch sind – dazwischen die normalen Sprüche
@@ -1607,6 +1634,7 @@ function begleiterHin(){
 function begleiterWeg(){
   if (!BG.el) return;
   clearInterval(BG.wander); clearTimeout(BG.blaseZeit); clearTimeout(BG.aktionZeit); clearTimeout(BG.bildZeit);
+  clearTimeout(BG.ansageZeit);
   BG.el.remove(); document.body.classList.remove('ogt-mini-mit-bg');
   BG.el = BG.bild = BG.blase = null; BG.sid = '';
 }
@@ -1621,11 +1649,20 @@ function zeigeNaechste(u, erste){
   var t = ansageText(u, erste);
   sagen(t, Math.min(8000, 3500 + t.length * 30));
 }
+// erste Übung ansagen, solange in der Einheit noch nichts abgehakt ist (nach der Begrüßung und nach einer Reaktion im Kurz-Check)
+function ersteAnsagen(ms){
+  clearTimeout(BG.ansageZeit);
+  BG.ansageZeit = setTimeout(function(){
+    var t = A.sitzung && A.sitzung(), u = t && naechsteUebung(t);
+    if (u && BG.el && BG.sid === t.sid) zeigeNaechste(u, !t.uebungen.some(function(x){ return x.begonnen; }));
+  }, ms);
+}
 // ganzer erster Satz des „Achte auf“-Hinweises (in den Plänen höchstens 138 Zeichen); lange Ansagen bleiben länger stehen.
 // Mit „Sprüche ohne Filter“ kommt jedes zweite Mal ein „Checkst du?“ dahinter (Olli 22.11.2026).
 function ansageText(u, erste){
   var t = (erste ? 'Erste Übung: ' : 'Nächste Übung: ') + u.n + (u.cue ? '. Achte auf: ' + kurz(u.cue, 140) : ' – lass knacken!');
-  if (u.cue && frech() && Math.random() < 0.5) t += ' ' + CHECK[Math.floor(Math.random() * CHECK.length)];
+  var ch = jung() ? CHECK.concat(CHECK_JUNG) : CHECK;
+  if (u.cue && frech() && Math.random() < 0.5) t += ' ' + einsetzen(ch[Math.floor(Math.random() * ch.length)]);
   return t;
 }
 function begleiterPruefen(){
@@ -1636,23 +1673,27 @@ function begleiterPruefen(){
   if (!neu) return;
   BG.sid = s.sid; begleiterBild({ arm: 1, gesicht: 'froh' }, 2000); aktion('huepf');
   sagen(begruessung(), 2600);
-  setTimeout(function(){ var t = A.sitzung && A.sitzung(), u = t && naechsteUebung(t); if (u && BG.el && BG.sid === t.sid) zeigeNaechste(u, !t.uebungen.some(function(x){ return x.begonnen; })); }, 2500);
+  ersteAnsagen(2500);
 }
 function begleiterSatz(d){
   if (!BG.el) return;
   var s = A.sitzung && A.sitzung(); if (!s) return;
   var u = d && d.x ? s.uebungen.filter(function(x){ return x.x === d.x; })[0] : null;
+  clearTimeout(BG.ansageZeit);   // es wurde wieder abgehakt: eine noch ausstehende Ansage fällt weg
   if (meilenstein(s.sid, s.uebungen)){
     aktion('tanz', 1700); begleiterBild({ arm: 1, gesicht: 'froh' }, 2500); sagen(ALLES_GESCHAFFT, 4500); return;
   }
   var hauptDurch = !!(BG.gesagt[s.sid] && BG.gesagt[s.sid].haupt);
   if ((u && u.fertig) || (d && d.block != null)){
-    aktion('moonwalk', 1700); begleiterBild({ gesicht: 'froh' }, 1600); sagen(spruch(UEBUNG_SPRUECHE, UEBUNG_NAME, FRECH_UEBUNG.concat(FRECH)), 1700);
-    if (!hauptDurch) setTimeout(function(){ var t = A.sitzung && A.sitzung(), n = t && naechsteUebung(t); if (n && !n.opt && BG.el) zeigeNaechste(n, false); }, 1900);
+    // Übung fertig: Spruch mindestens 4 s lesbar, erst danach „Nächste Übung“ (Olli 22.11.2026)
+    var txt = spruch(uebungTopf(), UEBUNG_NAME, FRECH_UEBUNG.concat(jung() ? FRECH_JUNG_UEBUNG : [], frechSatz())), ms = lesezeit(txt, 4000, 6500);
+    aktion('moonwalk', 1700); begleiterBild({ gesicht: 'froh' }, 1600); sagen(txt, ms);
+    if (!hauptDurch) BG.ansageZeit = setTimeout(function(){ var t = A.sitzung && A.sitzung(), n = t && naechsteUebung(t); if (n && !n.opt && BG.el && BG.sid === t.sid) zeigeNaechste(n, false); }, ms + 400);
     return;
   }
+  var satz = spruch(satzTopf(), satzNameTopf());
   aktion('huepf'); begleiterBild({ gesicht: 'froh' }, 700);
-  sagen(spruch(SATZ_SPRUECHE, SATZ_NAME), 1500);
+  sagen(satz, lesezeit(satz, 2200, 4500));
 }
 // Am Ende der Einheit: der Begleiter und der Abklatsch-Partner klatschen sich ab
 function begleiterFinale(){
@@ -1668,6 +1709,35 @@ function begleiterFinale(){
   setTimeout(function(){ box.classList.add('weg'); }, 3100);
   setTimeout(function(){ box.remove(); }, 3700);
 }
+
+// Reaktion auf schlechte Werte (Olli 22.11.2026: „wenn die irgendwo einen etwas schlechteren Wert anklicken … So Krise, Digga. Fuck.“):
+// nur Frische (0–3), Schlaf/Muskelkater/Stress (1–2) und Anstrengung (9–10), nie bei den Schmerzfragen; je Frage und Einheit einmal
+var REAKT = { normal: ['Uff.', 'Oh je – Kopf hoch!', 'Danke fürs Ehrlich-Sein!'],
+  jung: ['Krise, Digga.', 'Was ist da los, {sis}?', 'Alter … Krise.', 'Oha – Krise.', 'Was ist da los, Bruder?'],
+  frech: ['Scheiße … Krise.', 'Fuck.', 'Was ist da los?', 'Uff – Scheiße.'],
+  frechJung: ['Krise, Digga.', 'Fuck.', 'Was ist da los, {sis}?', 'Alter … Krise.', 'Digga, das ist ’ne Krise.', 'Was ist da los, Bruder?', 'Fuck, Digga – Krise.'] };
+var REAKT_HART = { normal: ['Puh, das war hart – stark durchgezogen!', 'Respekt – das war hart!'],
+  jung: ['Alter, das war hart – Respekt!', 'Krass, Digga – du hast durchgezogen!'],
+  frech: ['Fuck, das war hart!', 'Alter, das war brutal – Respekt!'],
+  frechJung: ['Fuck, das war hart!', 'Alter, das war brutal – Respekt!', 'Krass, Digga – du hast durchgezogen!'] };
+function reaktPool(hart){ var R = hart ? REAKT_HART : REAKT; return frech() ? (jung() ? R.frechJung : R.frech) : (jung() ? R.jung : R.normal); }
+function wertArt(name, v){
+  if (/^sa-(sl|mk|sr)$/.test(name)) return v <= 2 ? 'schlecht' : '';
+  if (name === 'pre-fr' || name === 'fin-fr') return v <= 3 ? 'schlecht' : '';
+  if (name === 'fin-e') return v >= 9 ? 'hart' : '';
+  return '';
+}
+document.addEventListener('change', function(ev){
+  var t = ev.target; if (!t || t.type !== 'radio' || !BG.el) return;
+  var art = wertArt(t.name, +t.value); if (!art) return;
+  var k = BG.sid + '|' + t.name; BG.reagiert = BG.reagiert || {}; if (BG.reagiert[k]) return; BG.reagiert[k] = 1;
+  var l = reaktPool(art === 'hart'), txt = einsetzen(l[Math.floor(Math.random() * l.length)]), ms = lesezeit(txt, 2600, 4500);
+  if (art === 'hart'){ aktion('huepf', 600); begleiterBild({ gesicht: 'froh' }, 1400); } else begleiterBild({ gesicht: 'grummel' }, 1800);
+  clearTimeout(BG.ansageZeit);
+  sagen(txt, ms);
+  var s = A.sitzung && A.sitzung();   // noch nichts abgehakt (Kurz-Check): danach die erste Übung wieder ansagen
+  if (s && s.sid === BG.sid && !s.uebungen.some(function(x){ return x.begonnen; })) ersteAnsagen(ms + 400);
+});
 
 // ===================== Signale aus der App =====================
 var FERTIG_ZEIT = 0;
@@ -1910,7 +1980,10 @@ A.pruefen = { stand: stand, kaufen: kaufen, besitzt: besitzt, feiern: feiern, sp
   effekt: function(id, W, H){ return EFFEKT[id] ? EFFEKT[id](W, H) : null; }, ST: function(){ return JSON.parse(JSON.stringify(ST)); },
   begleiter: function(){ return { da: !!BG.el, text: BG.blase && !BG.blase.hidden ? BG.text : '', tier: meinTier(), name: meinName() }; }, finale: begleiterFinale,
   tiere: function(){ return Object.keys(TIERE); }, tierBild: function(o){ return katzeSvg(o); },
-  spruch: function(){ return spruch(SATZ_SPRUECHE, SATZ_NAME); }, warFrech: function(){ return !!BG.warFrech; }, gruss: begruessung, meilenstein: meilenstein, frech: FRECH.slice(),
-  check: CHECK.slice(), ansage: ansageText, dekoVon: dekoVon, fellVon: fellVon,
+  spruch: function(){ return spruch(satzTopf(), satzNameTopf()); }, lesezeit: lesezeit, jung: jung, alte: ALTE_SAETZE.slice(), einsetzen: einsetzen, warFrech: function(){ return !!BG.warFrech; }, gruss: begruessung, meilenstein: meilenstein, frech: FRECH.slice(),
+  check: CHECK.concat(jung() ? CHECK_JUNG : []), reaktionen: function(){ return reaktPool(false).concat(reaktPool(true)).map(einsetzen); },
+  alleSprueche: function(){ return [].concat(SPRUECHE, SATZ_SPRUECHE, SATZ_NAME, ALTE_SAETZE, UEBUNG_SPRUECHE, UEBUNG_NAME, SATZ_JUNG, SATZ_JUNG_NAME, UEBUNG_JUNG,
+    FRECH, FRECH_NAME, FRECH_UEBUNG, FRECH_JUNG, FRECH_JUNG_NAME, FRECH_JUNG_UEBUNG, CHECK, CHECK_JUNG, [ALLES_GESCHAFFT],
+    REAKT.normal, REAKT.jung, REAKT.frech, REAKT.frechJung, REAKT_HART.normal, REAKT_HART.jung, REAKT_HART.frech, REAKT_HART.frechJung); }, ansage: ansageText, dekoVon: dekoVon, fellVon: fellVon,
   partner: function(){ return { tier: meinPartner(), fell: partnerFell() }; }, slot: function(){ return SLOT; } };
 })();

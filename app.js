@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version 55e93a8358
+/*! O.G. Trainings-App · Grundgerüst · Version f6cfe0d535
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -3062,7 +3062,7 @@ function miniStart(){
   if (!miniAn() || window.OGT_MINI) return;
   window.OGT_MINI = { cfg: MINIGAME, id: S.id, titel: TITLE, self: !!SELF, heute: todayISO, einheiten: miniEinheiten, wochen: miniWochen, toast: toast,
     spiele: miniSpiele, hat: { hb: !!HB_FRAGE }, ther: therShort() || 'deinen Coach', sitzung: miniSitzung };
-  var sc = document.createElement('script'); sc.src = 'spiele.js?v=55e93a8358'; sc.async = true;
+  var sc = document.createElement('script'); sc.src = 'spiele.js?v=f6cfe0d535'; sc.async = true;
   document.body.appendChild(sc);
 }
 
