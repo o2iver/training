@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Minigames (Test, Aufgabe 65) · Version 77ff8e5fcd
+/*! O.G. Trainings-App · Minigames (Test, Aufgabe 65) · Version 2a3eb6938c
  * Lädt nur, wenn ein Plan MINIGAME hat (miniStart in app_template.js) – die echten Pläne laden diese Datei nicht.
  * Punkte (⭐) gibt es nur fürs Training und fürs Eintragen: gespeicherte Einheit, Pflicht-Übungen mit mindestens einem
  * Satz, Morgen-Check, ganze Woche – dazu geheime Boni fürs Monitoring (Kurz-Check, Handball, Spieltag, Notiz,
@@ -231,9 +231,30 @@ function katzeMalen(ctx, opt, cx, cy, groesse){
   var im = katzeBild(opt);
   if (im.complete && im.naturalWidth) ctx.drawImage(im, cx - groesse / 2, cy - groesse / 2, groesse, groesse);
 }
+// Handball (eigener Entwurf, Olli 22.11.2026: „richtiges Handball-Motiv“ statt Basketball): weiß, Mittelfeld und
+// Randfelder in Blau und Gelb, graue Nähte – wie ein Spielball mit 32 Feldern
+var BALL_BLAU = '#1d4ed8', BALL_GELB = '#facc15', BALL_NAHT = '#8a96a8', BALL_RAND = '#1f2937';
+function ballTeile(r, rot){
+  var mitte = [], naehte = [], kappen = [];
+  for (var k = 0; k < 5; k++){
+    var a = -Math.PI / 2 + k * TAU / 5 + (rot || 0);
+    mitte.push([Math.cos(a) * r * 0.36, Math.sin(a) * r * 0.36]);
+    naehte.push([Math.cos(a) * r * 0.36, Math.sin(a) * r * 0.36, Math.cos(a) * r * 1.1, Math.sin(a) * r * 1.1]);
+    var b = a + TAU / 10, cx = Math.cos(b) * r * 0.9, cy = Math.sin(b) * r * 0.9, pts = [];
+    for (var j = 0; j < 5; j++){ var c = b + Math.PI + j * TAU / 5; pts.push([cx + Math.cos(c) * r * 0.3, cy + Math.sin(c) * r * 0.3]); }
+    kappen.push({ pts: pts, farbe: k % 2 ? BALL_GELB : BALL_BLAU });
+  }
+  return { mitte: mitte, naehte: naehte, kappen: kappen };
+}
 function ballSvg(){
-  return '<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><circle cx="24" cy="24" r="21" fill="#ffd23f" stroke="#1f2937" stroke-width="2"/>'
-    + '<path d="M24 3v42M7 13c8 6 8 16 0 22M41 13c-8 6-8 16 0 22" fill="none" stroke="#1d4ed8" stroke-width="3"/></svg>';
+  var r = 21, T = ballTeile(r, 0);
+  function P(pts){ return pts.map(function(p){ return (24 + p[0]).toFixed(1) + ',' + (24 + p[1]).toFixed(1); }).join(' '); }
+  var h = '<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><defs><radialGradient id="ogtBallG" cx=".38" cy=".34" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d9e1ea"/></radialGradient><clipPath id="ogtBallC"><circle cx="24" cy="24" r="' + r + '"/></clipPath></defs>'
+    + '<circle cx="24" cy="24" r="' + r + '" fill="url(#ogtBallG)"/><g clip-path="url(#ogtBallC)" stroke="' + BALL_NAHT + '" stroke-width="1" stroke-linejoin="round">';
+  T.naehte.forEach(function(n){ h += '<line x1="' + (24 + n[0]).toFixed(1) + '" y1="' + (24 + n[1]).toFixed(1) + '" x2="' + (24 + n[2]).toFixed(1) + '" y2="' + (24 + n[3]).toFixed(1) + '"/>'; });
+  T.kappen.forEach(function(k){ h += '<polygon points="' + P(k.pts) + '" fill="' + k.farbe + '"/>'; });
+  h += '<polygon points="' + P(T.mitte) + '" fill="' + BALL_BLAU + '"/></g>';
+  return h + '<circle cx="24" cy="24" r="' + r + '" fill="none" stroke="' + BALL_RAND + '" stroke-width="1.8"/><ellipse cx="17" cy="15" rx="4.5" ry="2.6" fill="#fff" opacity=".6" transform="rotate(-30 17 15)"/></svg>';
 }
 function katzenSvg(){   // Bild für „Katzen-Parade“: zwei Katzen
   return '<span class="ogt-mini-zwei">' + katzeSvg({ fell: 'grau', gesicht: 'froh' }) + katzeSvg({ fell: 'orange', arm: 1 }) + '</span>';
@@ -251,15 +272,19 @@ function abstandStrecke(px, py, x1, y1, x2, y2){
 function ballMalen(ctx, x, y, r, rot){
   r = Math.max(2, r);
   ctx.save(); ctx.translate(x, y);
-  ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fillStyle = '#ffd23f'; ctx.fill();
-  ctx.save(); ctx.clip(); ctx.rotate(rot || 0);
-  ctx.strokeStyle = '#1d4ed8'; ctx.lineWidth = Math.max(1.2, r * 0.16);
-  linie(ctx, 0, -r, 0, r);
-  ctx.beginPath(); ctx.arc(-r * 1.05, 0, r * 0.8, -1.1, 1.1); ctx.stroke();
-  ctx.beginPath(); ctx.arc(r * 1.05, 0, r * 0.8, Math.PI - 1.1, Math.PI + 1.1); ctx.stroke();
+  var g = ctx.createRadialGradient(-r * 0.3, -r * 0.35, r * 0.1, 0, 0, r);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#d9e1ea');
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fillStyle = g; ctx.fill();
+  ctx.save(); ctx.clip();
+  var T = ballTeile(r, rot || 0);
+  ctx.strokeStyle = BALL_NAHT; ctx.lineWidth = Math.max(0.8, r * 0.05); ctx.lineJoin = 'round';
+  T.naehte.forEach(function(n){ ctx.beginPath(); ctx.moveTo(n[0], n[1]); ctx.lineTo(n[2], n[3]); ctx.stroke(); });
+  function vieleck(pts, farbe){ ctx.beginPath(); pts.forEach(function(p, i){ if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.closePath(); ctx.fillStyle = farbe; ctx.fill(); ctx.stroke(); }
+  T.kappen.forEach(function(k){ vieleck(k.pts, k.farbe); });
+  vieleck(T.mitte, BALL_BLAU);
   ctx.restore();
-  ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.lineWidth = Math.max(1, r * 0.09); ctx.strokeStyle = 'rgba(15,23,42,.55)'; ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,.38)'; kreis(ctx, -r * 0.35, -r * 0.38, r * 0.26);
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.lineWidth = Math.max(1, r * 0.085); ctx.strokeStyle = BALL_RAND; ctx.stroke();
+  ctx.save(); ctx.globalAlpha = 0.55; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(-r * 0.32, -r * 0.4, r * 0.22, r * 0.12, -0.5, 0, TAU); ctx.fill(); ctx.restore();
   ctx.restore();
 }
 function streifenPfosten(ctx, x, y, w, h, senkrecht){
