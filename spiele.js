@@ -1,9 +1,9 @@
-/*! O.G. Trainings-App · Minigames (Test, Aufgabe 65) · Version 2a3eb6938c
+/*! O.G. Trainings-App · Minigames (Test, Aufgabe 65) · Version cbb5c7f782
  * Lädt nur, wenn ein Plan MINIGAME hat (miniStart in app_template.js) – die echten Pläne laden diese Datei nicht.
  * Punkte (⭐) gibt es nur fürs Training und fürs Eintragen: gespeicherte Einheit, Pflicht-Übungen mit mindestens einem
  * Satz, Morgen-Check, ganze Woche – dazu geheime Boni fürs Monitoring (Kurz-Check, Handball, Spieltag, Notiz,
  * Dranbleiben). Nie für mehr Gewicht, mehr Sätze, Optionales oder Extra-Training (Belastungsmanagement).
- * Mit den Punkten kauft man im Shop: Minispiele, Feiern, Accessoires und Fellfarben für die Katze.
+ * Mit den Punkten kauft man im Shop: Minispiele, Feiern, Begleiter-Tiere, Accessoires und Fellfarben für die Katze.
  * Punkte, Käufe, Rekorde und Spielstände bleiben auf dem Gerät (ogt:mini:<kennung>) und gehen nicht mit der Rückmeldung raus.
  * Figuren, Spiele und Effekte sind eigene Entwürfe. Quelle: app/spiele.js (build.py setzt die Version). */
 (function(){
@@ -86,8 +86,8 @@ var SPIELE = {
   parade: { n: 'Parade', icon: '🥅', preis: 20, einheit: 'Paraden', start: parade,
     text: 'Tipp die Bälle an, bevor sie im Tor sind. Nach 3 Gegentoren ist Schluss.' },
   katze: { n: 'High Five', icon: '🐾', preis: 30, einheit: 'High Fives', start: highfive,
-    text: 'Klatsch die Katze ab: Tipp auf die Seite, auf der sie die Pfote hebt – aber nur dann.' },
-  sprint: { n: 'Katzen-Sprint', icon: '🏃', preis: 40, einheit: 'm', start: sprint,
+    text: 'Klatsch deinen Begleiter ab: Tipp auf die Seite, auf der die Pfote hochgeht – aber nur dann.' },
+  sprint: { n: 'Begleiter-Sprint', icon: '🏃', preis: 40, einheit: 'm', start: sprint,
     text: 'Tipp zum Springen – über Hütchen und Hürden, Sterne einsammeln. Wie weit kommst du?' },
   muckibude: { n: 'Muckibude', icon: '🏋️', preis: 50, einheit: '', eigen: true,
     text: 'Jeder Tipp ist eine Wiederholung. Sammle Kraft, kauf bessere Hanteln und einen Trainingspartner – dein Fortschritt bleibt.' }
@@ -122,14 +122,39 @@ var FELL = {
   schwarz: { n: 'Nachtschwarz', preis: 60, fell: '#3d3d49', streifen: '#2b2b35', creme: '#e9e9f3', linie: '#141419' },
   gold: { n: 'Gold', preis: 150, fell: '#ffd24d', streifen: '#f0a800', creme: '#fff7d6', linie: '#6b4a00' }
 };
+// Begleiter (Runde 3): Ollis Auswahl 22.11.2026 – Katze, Hund, Bär, Esel, Panda, Fuchs, Hase und „alles, was niedlich ist“
+var TIERE = {
+  katze: { n: 'Katze', preis: 0, ruf: 'Let’s Miau!' },
+  hund: { n: 'Hund', preis: 60, ruf: 'Wuff – auf geht’s!', fell: '#dba56b', dunkel: '#9a673b', creme: '#fff3e2', linie: '#3b2a1a', nase: '#2a1d16' },
+  esel: { n: 'Esel', preis: 60, ruf: 'I-aah – auf!', fell: '#a9a8b4', dunkel: '#5d5b68', creme: '#ece9f1', linie: '#33323c', nase: '#3b3946' },
+  hase: { n: 'Hase', preis: 60, ruf: 'Hopp, hopp – los!', fell: '#e8d2ba', dunkel: '#cfae8e', creme: '#fffaf3', linie: '#4a3727', nase: '#ff8fab' },
+  maus: { n: 'Maus', preis: 60, ruf: 'Piep – auf geht’s!', fell: '#babecb', dunkel: '#9298a7', creme: '#f5f3f8', linie: '#373945', nase: '#ff8fab' },
+  kueken: { n: 'Küken', preis: 60, ruf: 'Klein, aber oho – los!', fell: '#ffd84a', dunkel: '#f4b400', creme: '#fff6c4', linie: '#7a5a00', nase: '#ff9a1f', pfote: '#ff9a1f', vogel: 1 },
+  baer: { n: 'Bär', preis: 70, ruf: 'Brumm – auf geht’s!', fell: '#a8693b', dunkel: '#7b4a26', creme: '#f0d2ad', linie: '#3a2414', nase: '#2b1a10' },
+  hamster: { n: 'Hamster', preis: 70, ruf: 'Volle Backen – los!', fell: '#f3be7a', dunkel: '#dd9548', creme: '#fff8ee', linie: '#4d3018', nase: '#ff8fab' },
+  schwein: { n: 'Schweinchen', preis: 70, ruf: 'Oink – auf geht’s!', fell: '#f9c0ce', dunkel: '#ef93ab', creme: '#ffe5ec', linie: '#6e3448', nase: '#f590ad' },
+  schaf: { n: 'Schaf', preis: 70, ruf: 'Mäh – auf geht’s!', fell: '#fffaf3', dunkel: '#eadfce', creme: '#ffffff', linie: '#5c4b3e', nase: '#ff9fb5', kopf: '#f6e2d2' },
+  igel: { n: 'Igel', preis: 80, ruf: 'Stachelstark – auf!', fell: '#f2d8b6', dunkel: '#8b5d3b', creme: '#fff5e8', linie: '#4a2f1c', nase: '#2b1d14' },
+  fuchs: { n: 'Fuchs', preis: 90, ruf: 'Auf geht’s!', fell: '#f28a2e', dunkel: '#3a2618', creme: '#fff6ec', linie: '#3d2212', nase: '#2a1810' },
+  panda: { n: 'Panda', preis: 90, ruf: 'Bambus-Power!', fell: '#fbfbfb', dunkel: '#26262c', creme: '#ffffff', linie: '#26262c', nase: '#26262c' },
+  koala: { n: 'Koala', preis: 90, ruf: 'Koala-Kraft – los!', fell: '#a6abb6', dunkel: '#7e8491', creme: '#f4f5f8', linie: '#363941', nase: '#34373f' },
+  waschbaer: { n: 'Waschbär', preis: 90, ruf: 'Packen wir’s an!', fell: '#aaacb4', dunkel: '#3d3f47', creme: '#f7f7f9', linie: '#2f3037', nase: '#26272c', pfote: '#3d3f47' },
+  pinguin: { n: 'Pinguin', preis: 100, ruf: 'Watschel-Power – los!', fell: '#3b4a66', dunkel: '#252f42', creme: '#ffffff', linie: '#1b2130', nase: '#ffa22e', pfote: '#ffa22e', vogel: 1 },
+  eule: { n: 'Eule', preis: 100, ruf: 'Huhu – auf geht’s!', fell: '#ae865f', dunkel: '#7d583a', creme: '#f7e9d4', linie: '#3d2817', nase: '#f6a623', pfote: '#f6a623', vogel: 1 },
+  tiger: { n: 'Tiger', preis: 120, ruf: 'Rrrr – auf geht’s!', fell: '#f7a24c', dunkel: '#2e2119', creme: '#fffaf3', linie: '#2e2119', nase: '#ff8fa8' },
+  loewe: { n: 'Löwe', preis: 130, ruf: 'Löwenstark – los!', fell: '#f5c464', dunkel: '#c9772d', creme: '#fff4dc', linie: '#4b2d12', nase: '#7a4422' },
+  einhorn: { n: 'Einhorn', preis: 200, ruf: 'Magisch – los geht’s!', fell: '#fefcff', dunkel: '#d9ccef', creme: '#ffffff', linie: '#5b4a70', nase: '#e9a9c7', pfote: '#efe7fb',
+    maehne: ['#ff9bd0', '#b89cff', '#8fd3ff', '#9af0c8'] }
+};
 function spielListe(){ return (Array.isArray(CFG.spiele) ? CFG.spiele : []).filter(function(id){ return SPIELE[id]; }); }
-// Kennung im Shop: spiel:<id>, feier:<id>, deko:<id>, fell:<id>
+// Kennung im Shop: spiel:<id>, feier:<id>, deko:<id>, fell:<id>, tier:<id>
 function ding(kennung){
   var t = String(kennung).split(':'), art = t[0], id = t[1], x;
   if (art === 'spiel' && SPIELE[id] && spielListe().indexOf(id) >= 0) return { art: art, id: id, n: SPIELE[id].n, preis: SPIELE[id].preis };
   if (art === 'feier'){ x = FEIERN.filter(function(f){ return f.id === id; })[0]; if (x) return { art: art, id: id, n: x.n, preis: x.preis }; }
   if (art === 'deko'){ x = DEKO.filter(function(f){ return f.id === id; })[0]; if (x) return { art: art, id: id, n: x.n, preis: x.preis, platz: x.platz }; }
   if (art === 'fell' && FELL[id]) return { art: art, id: id, n: FELL[id].n, preis: FELL[id].preis };
+  if (art === 'tier' && TIERE[id]) return { art: art, id: id, n: TIERE[id].n, preis: TIERE[id].preis };
   return null;
 }
 function besitzt(kennung){ var d = ding(kennung); return !!d && (d.preis === 0 || ST.gekauft[kennung] != null); }
@@ -140,13 +165,15 @@ function kaufen(kennung){
   if (d.art === 'feier') ST.feier = d.id;
   if (d.art === 'deko') ST.deko[d.platz] = d.id;
   if (d.art === 'fell') ST.fell = d.id;
+  if (d.art === 'tier') ST.tier = d.id;
   sichern();
   return true;
 }
 function aktiveFeier(){ return besitzt('feier:' + ST.feier) ? ST.feier : 'konfetti'; }
 function meineDeko(){ var o = {}; Object.keys(PLATZ).forEach(function(p){ var id = ST.deko[p]; o[p] = id && besitzt('deko:' + id) ? id : ''; }); return o; }
 function meinFell(){ return besitzt('fell:' + ST.fell) ? ST.fell : 'orange'; }
-function meineKatze(extra){ var o = { deko: meineDeko(), fell: meinFell() }; Object.keys(extra || {}).forEach(function(k){ o[k] = extra[k]; }); return o; }
+function meinTier(){ return besitzt('tier:' + ST.tier) ? ST.tier : 'katze'; }
+function meineKatze(extra){ var o = { tier: meinTier(), deko: meineDeko(), fell: meinFell() }; Object.keys(extra || {}).forEach(function(k){ o[k] = extra[k]; }); return o; }
 // günstigstes Ding, das man noch nicht hat (für „Als Nächstes“)
 function naechstesZiel(){
   var alle = [];
@@ -154,65 +181,205 @@ function naechstesZiel(){
   FEIERN.forEach(function(f){ alle.push('feier:' + f.id); });
   DEKO.forEach(function(d){ alle.push('deko:' + d.id); });
   Object.keys(FELL).forEach(function(f){ alle.push('fell:' + f); });
+  Object.keys(TIERE).forEach(function(t){ alle.push('tier:' + t); });
   var offen = alle.filter(function(k){ return !besitzt(k); }).map(ding).filter(Boolean).sort(function(a, b){ return a.preis - b.preis; });
   return offen[0] || null;
 }
 
-// ===================== Die Katze (gezeichnet, eigener Entwurf, 120 × 120) =====================
+// ===================== Die Begleiter (gezeichnet, eigene Entwürfe, 120 × 120, gleicher Kopf für Accessoires) =====================
+function tierFarben(opt){
+  var t = opt && TIERE[opt.tier] ? opt.tier : 'katze';
+  if (t === 'katze'){
+    var f = FELL[opt && opt.fell] || FELL.orange;
+    return { tier: t, fell: f.fell, kopf: f.fell, streifen: f.streifen, creme: f.creme, linie: f.linie, dunkel: f.streifen, nase: '#ff7fa0', pfote: f.creme, hand: f.creme, ohr: '#ffadc4', vogel: false };
+  }
+  var T = TIERE[t], pfote = T.pfote || (t === 'panda' ? T.dunkel : T.creme);
+  return { tier: t, fell: T.fell, kopf: T.kopf || T.fell, streifen: T.dunkel, creme: T.creme, linie: T.linie, dunkel: T.dunkel, nase: T.nase, pfote: pfote,
+    hand: T.vogel ? (t === 'eule' ? T.dunkel : T.fell) : pfote, ohr: '#ffb3c7', vogel: !!T.vogel };
+}
 function katzeSvg(opt){
   opt = opt || {};
-  var F = FELL[opt.fell] || FELL.orange, L = F.linie, arm = opt.arm || 0, g = opt.gesicht || '', d = opt.deko || {};
+  var F = tierFarben(opt), t = F.tier, L = F.linie, arm = opt.arm || 0, g = opt.gesicht || '', d = opt.deko || {};
+  var dunkleAugen = t === 'panda' || t === 'waschbaer', M = TIERE.einhorn.maehne, i;
+  function X(x, links){ return links ? x : 120 - x; }
+  function strich(dd, farbe, breite, extra){ return '<path d="' + dd + '" fill="none" stroke="' + farbe + '" stroke-width="' + breite + '" stroke-linecap="round" stroke-linejoin="round"' + (extra || '') + '/>'; }
+  function flaeche(dd, farbe, breite){ return '<path d="' + dd + '" fill="' + farbe + '"' + (breite ? ' stroke="' + L + '" stroke-width="' + breite + '" stroke-linejoin="round"' : '') + '/>'; }
+  function kreis(cx, cy, r, farbe, breite){ return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + farbe + '"' + (breite ? ' stroke="' + L + '" stroke-width="' + breite + '"' : '') + '/>'; }
+  function oval(cx, cy, rx, ry, farbe, breite, extra){ return '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + rx + '" ry="' + ry + '" fill="' + farbe + '"' + (breite ? ' stroke="' + L + '" stroke-width="' + breite + '"' : '') + (extra || '') + '/>'; }
   var h = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"' + (opt.gross ? ' width="512" height="512"' : '') + ' aria-hidden="true" focusable="false">';
-  h += '<ellipse cx="60" cy="113" rx="30" ry="4.5" fill="rgba(0,0,0,.16)"/>';
-  h += '<path d="M79 101 C100 103 106 86 97 75" fill="none" stroke="' + L + '" stroke-width="13" stroke-linecap="round"/>';
-  h += '<path d="M79 101 C100 103 106 86 97 75" fill="none" stroke="' + F.fell + '" stroke-width="8" stroke-linecap="round"/>';
-  h += '<path d="M99 81 C101 78 100 76 98 75" fill="none" stroke="' + F.streifen + '" stroke-width="4" stroke-linecap="round"/>';
-  h += '<ellipse cx="60" cy="92" rx="23" ry="18" fill="' + F.fell + '" stroke="' + L + '" stroke-width="3"/>';
-  h += '<ellipse cx="60" cy="96" rx="12.5" ry="11.5" fill="' + F.creme + '"/>';
+  h += oval(60, 113, 30, 4.5, 'rgba(0,0,0,.16)');
+  // ganz hinten: Stacheln (Igel), Mähne (Löwe), Mähne an der Seite (Einhorn)
+  if (t === 'igel'){
+    var st = '';
+    for (i = 0; i <= 34; i++){
+      var a = (-28 + 236 * i / 34) * Math.PI / 180, spitze = i % 2 === 1;
+      st += (i ? ' L' : 'M') + (60 + (spitze ? 53 : 41) * Math.cos(a)).toFixed(1) + ' ' + (64 - (spitze ? 49 : 38) * Math.sin(a)).toFixed(1);
+    }
+    h += flaeche(st + ' Z', F.dunkel, 2.6);
+  }
+  if (t === 'loewe'){
+    for (i = 0; i < 18; i++){ var b = i * 20 * Math.PI / 180; h += kreis((60 + 39 * Math.cos(b)).toFixed(1), (57 + 34 * Math.sin(b)).toFixed(1), 9.5, F.dunkel, 2.6); }
+    h += oval(60, 57, 40, 35, F.dunkel);
+  }
+  if (t === 'einhorn') [[31, 33, 10, 0], [23, 45, 9.5, 1], [20, 58, 9, 2], [23, 71, 8.5, 3], [30, 82, 7.5, 0]].forEach(function(k){ h += kreis(k[0], k[1], k[2], M[k[3]], 2.4); });
+  // Schwanz
+  if (t === 'katze' || t === 'tiger'){
+    var sk = 'M79 101 C100 103 106 86 97 75';
+    h += strich(sk, L, 13) + strich(sk, F.fell, 8);
+    h += t === 'tiger' ? '<path d="' + sk + '" fill="none" stroke="' + F.dunkel + '" stroke-width="8" stroke-dasharray="3.5 6.5"/>' : strich('M99 81 C101 78 100 76 98 75', F.streifen, 4);
+  } else if (t === 'fuchs'){
+    h += '<path d="M78 100 C104 106 112 84 100 68 C96 80 90 88 80 92 Z" fill="' + F.fell + '" stroke="' + L + '" stroke-width="3" stroke-linejoin="round"/><path d="M100 68 C104 74 106 80 104 86 C101 82 99 76 100 68 Z" fill="' + F.creme + '"/>';
+  } else if (t === 'hund'){
+    h += strich('M80 96 Q96 92 96 78', L, 11) + strich('M80 96 Q96 92 96 78', F.fell, 6.5);
+  } else if (t === 'baer'){
+    h += kreis(83, 101, 7, F.fell, 2.6);
+  } else if (t === 'esel'){
+    h += strich('M80 98 Q92 96 95 84', L, 7) + strich('M80 98 Q92 96 95 84', F.fell, 3.5) + flaeche('M95 84 l-3 -9 l6 2 l1 -6 l3 9 Z', F.dunkel, 1.6);
+  } else if (t === 'hase'){
+    h += kreis(84, 100, 8.5, F.creme, 2.6);
+  } else if (t === 'schaf'){
+    h += kreis(84, 99, 7.5, F.fell, 2.4);
+  } else if (t === 'maus'){
+    var sm = 'M80 101 C98 106 108 96 103 86 C98 77 104 70 110 72';
+    h += strich(sm, L, 6.2) + strich(sm, '#f7aabd', 3);
+  } else if (t === 'schwein'){
+    var ss = 'M81 98 C89 100 94 94 90 90 C86 86 81 91 85 94 C89 97 96 93 97 86';
+    h += strich(ss, L, 6) + strich(ss, F.fell, 3);
+  } else if (t === 'waschbaer'){
+    var sw = 'M78 100 C100 104 108 86 99 72';
+    h += strich(sw, L, 17) + strich(sw, F.fell, 12) + '<path d="' + sw + '" fill="none" stroke="' + F.dunkel + '" stroke-width="12" stroke-dasharray="5 6"/>';
+  } else if (t === 'loewe'){
+    h += strich('M80 99 Q96 98 99 84', L, 7) + strich('M80 99 Q96 98 99 84', F.fell, 3.6) + flaeche('M99 87 C93 83 94 75 99 72 C104 75 105 83 99 87 Z', F.dunkel, 2.2);
+  } else if (t === 'einhorn'){
+    var se = 'M79 99 C99 102 106 87 98 75';
+    h += strich(se, L, 15) + strich(se, M[0], 11) + strich(se, M[1], 7) + strich(se, M[2], 3);
+  }
+  // Körper
+  if (t === 'schaf'){
+    for (i = 0; i < 12; i++){ var c = i * 30 * Math.PI / 180; h += kreis((60 + 20 * Math.cos(c)).toFixed(1), (92 + 14 * Math.sin(c)).toFixed(1), 7, F.fell, 2.4); }
+    h += oval(60, 92, 21, 15, F.fell);
+  } else h += oval(60, 92, 23, 18, F.fell, 3);
+  if (t === 'panda') h += '<path d="M38 86 Q60 74 82 86 L82 96 Q60 86 38 96 Z" fill="' + F.dunkel + '"/>';
+  if (t === 'tiger') h += strich('M39 88 l6 2 M38.5 95 l5.5 1 M81 88 l-6 2 M81.5 95 l-5.5 1', F.dunkel, 2.8);
+  if (t === 'pinguin') h += oval(60, 94, 17, 15, F.creme);
+  else if (t !== 'schaf') h += oval(60, 96, 12.5, 11.5, F.creme);
+  if (t === 'eule') h += strich('M53 92 q3.5 3 7 0 q3.5 3 7 0 M49.5 99 q3.5 3 7 0 q3.5 3 7 0 q3.5 3 7 0', F.dunkel, 1.8);
   function pfoteUnten(x){
-    return '<ellipse cx="' + x + '" cy="106" rx="8" ry="5.8" fill="' + F.creme + '" stroke="' + L + '" stroke-width="2.6"/>'
-      + '<path d="M' + (x - 2.4) + ' 103.5v4M' + (x + 2.4) + ' 103.5v4" stroke="' + L + '" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>';
+    return oval(x, 106, 8, 5.8, F.pfote, 2.6)
+      + (t === 'panda' || t === 'waschbaer' ? oval(x, 107, 3, 2, '#ff9ebb') : '<path d="M' + (x - 2.4) + ' 103.5v4M' + (x + 2.4) + ' 103.5v4" stroke="' + L + '" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>');
   }
   if (arm !== -1) h += pfoteUnten(49);
   if (arm !== 1) h += pfoteUnten(71);
+  if (t === 'kueken') h += flaeche('M33 93 L39 87 L44 93 L50 86 L55 92 L60 86 L65 92 L70 86 L76 93 L81 87 L87 93 Q88 113 60 113 Q32 113 33 93 Z', '#ffffff', 2.6);
+  if (F.vogel){   // Flügel in Ruhe
+    if (arm !== -1) h += flaeche('M40 82 Q30 90 35 102 Q42 98 44 88 Z', F.hand, 2.6);
+    if (arm !== 1) h += flaeche('M80 82 Q90 90 85 102 Q78 98 76 88 Z', F.hand, 2.6);
+  }
+  // Ohren (hinter dem Kopf)
   function ohr(links){
-    function X(x){ return links ? x : 120 - x; }
-    return '<path d="M' + X(29) + ' 42 L' + X(25) + ' 14 Q' + X(26) + ' 9 ' + X(31) + ' 11 L' + X(54) + ' 28 Z" fill="' + F.fell + '" stroke="' + L + '" stroke-width="3" stroke-linejoin="round"/>'
-      + '<path d="M' + X(32) + ' 36 L' + X(30) + ' 18 L' + X(47) + ' 29 Z" fill="#ffadc4"/>';
+    var x = function(v){ return X(v, links); };
+    switch (t){
+      case 'katze': return '<path d="M' + x(29) + ' 42 L' + x(25) + ' 14 Q' + x(26) + ' 9 ' + x(31) + ' 11 L' + x(54) + ' 28 Z" fill="' + F.fell + '" stroke="' + L + '" stroke-width="3" stroke-linejoin="round"/><path d="M' + x(32) + ' 36 L' + x(30) + ' 18 L' + x(47) + ' 29 Z" fill="#ffadc4"/>';
+      case 'fuchs': return '<path d="M' + x(27) + ' 44 L' + x(22) + ' 8 Q' + x(24) + ' 5 ' + x(28) + ' 7 L' + x(54) + ' 27 Z" fill="' + F.fell + '" stroke="' + L + '" stroke-width="3" stroke-linejoin="round"/><path d="M' + x(23) + ' 15 L' + x(22.5) + ' 8 Q' + x(24) + ' 5.5 ' + x(27.5) + ' 7.5 L' + x(33) + ' 12 Z" fill="' + F.dunkel + '"/><path d="M' + x(31) + ' 37 L' + x(28) + ' 17 L' + x(46) + ' 28 Z" fill="' + F.creme + '"/>';
+      case 'esel': return '<g transform="translate(0 3) rotate(' + (links ? -40 : 40) + ' ' + x(40) + ' 34)"><ellipse cx="' + x(44) + '" cy="10" rx="10" ry="24" fill="' + F.fell + '" stroke="' + L + '" stroke-width="3"/><ellipse cx="' + x(44) + '" cy="12" rx="4.2" ry="16" fill="' + F.creme + '"/><path d="M' + x(36.2) + ' 0 Q' + x(44) + ' -16 ' + x(51.8) + ' 0 Q' + x(44) + ' -4 ' + x(36.2) + ' 0 Z" fill="' + F.dunkel + '"/></g>';
+      case 'baer': return kreis(x(32), 31, 12, F.fell, 3) + kreis(x(32), 32, 6.5, F.creme);
+      case 'panda': return kreis(x(31), 30, 12, F.dunkel, 2);
+      case 'tiger': return kreis(x(31), 31, 11, F.fell, 3) + kreis(x(31), 32, 5.5, F.creme);
+      case 'loewe': return kreis(x(33), 30, 9, F.fell, 3) + kreis(x(33), 31, 4.6, F.creme);
+      case 'koala': return kreis(x(23), 41, 17, F.fell, 3) + kreis(x(24), 42, 10.5, F.creme) + strich('M' + x(17) + ' 36 l3 3 M' + x(16) + ' 44 l4 0 M' + x(19) + ' 51 l3 -3', F.dunkel, 1.6);
+      case 'maus': return kreis(x(26), 33, 16.5, F.fell, 3) + kreis(x(27), 34, 10.5, F.ohr);
+      case 'hamster': return kreis(x(34), 31, 8.5, F.fell, 3) + kreis(x(34), 32, 4.6, F.ohr);
+      case 'igel': return kreis(x(29), 35, 7, F.fell, 2.6) + kreis(x(29), 35.5, 3.6, F.ohr);
+      case 'hase': return '<g transform="rotate(' + (links ? -10 : 26) + ' ' + x(44) + ' 36)">' + oval(x(44), 19, 9.5, 17.5, F.fell, 3) + oval(x(44), 21, 4.6, 12.5, F.ohr) + '</g>';
+      case 'schwein': return flaeche('M' + x(28) + ' 40 L' + x(23) + ' 18 Q' + x(24) + ' 13 ' + x(29) + ' 15 L' + x(50) + ' 29 Z', F.fell, 3) + flaeche('M' + x(30) + ' 35 L' + x(27) + ' 20 L' + x(44) + ' 30 Z', F.dunkel);
+      case 'waschbaer': return flaeche('M' + x(27) + ' 42 L' + x(24) + ' 17 Q' + x(26) + ' 12 ' + x(32) + ' 15 L' + x(52) + ' 29 Z', F.fell, 3) + flaeche('M' + x(30) + ' 36 L' + x(28) + ' 21 L' + x(45) + ' 30 Z', F.dunkel);
+      case 'eule': return flaeche('M' + x(31) + ' 38 L' + x(21) + ' 13 L' + x(48) + ' 30 Z', F.dunkel, 3);
+      case 'schaf': return '<g transform="rotate(' + (links ? -25 : 25) + ' ' + x(22) + ' 50)">' + oval(x(22), 50, 13, 6.5, F.kopf, 2.6) + oval(x(23), 50, 7.5, 3, F.ohr) + '</g>';
+      case 'einhorn': return flaeche('M' + x(31) + ' 40 L' + x(29) + ' 14 Q' + x(31) + ' 9 ' + x(36) + ' 12 L' + x(52) + ' 28 Z', F.fell, 3) + flaeche('M' + x(33) + ' 34 L' + x(32) + ' 18 L' + x(46) + ' 28 Z', F.ohr);
+    }
+    return '';
   }
   h += ohr(true) + ohr(false);
-  h += '<ellipse cx="60" cy="56" rx="37" ry="31" fill="' + F.fell + '" stroke="' + L + '" stroke-width="3"/>';
-  h += '<path d="M53 29.5v7M60 27.5v8.5M67 29.5v7" stroke="' + F.streifen + '" stroke-width="3.6" stroke-linecap="round"/>';
-  h += '<ellipse cx="32" cy="66" rx="6.5" ry="3.8" fill="#ff8fb0" opacity=".55"/><ellipse cx="88" cy="66" rx="6.5" ry="3.8" fill="#ff8fb0" opacity=".55"/>';
-  h += '<ellipse cx="60" cy="67.5" rx="13.5" ry="9" fill="' + F.creme + '"/>';
-  h += '<path d="M29 63 L16 60M29 67.5 L15 68.5M91 63 L104 60M91 67.5 L105 68.5" stroke="' + L + '" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>';
-  if (g === 'froh') h += '<path d="M37 58 Q45 49 53 58M67 58 Q75 49 83 58" fill="none" stroke="' + L + '" stroke-width="3.4" stroke-linecap="round"/>';
-  else {
-    var ry = g === 'grummel' ? 5.2 : 8.8, gy = g === 'grummel' ? 55 : 52.6;
-    h += '<ellipse cx="45" cy="56.5" rx="7.2" ry="' + ry + '" fill="#2a1f22"/><ellipse cx="75" cy="56.5" rx="7.2" ry="' + ry + '" fill="#2a1f22"/>';
-    h += '<circle cx="42.4" cy="' + gy + '" r="3" fill="#fff"/><circle cx="72.4" cy="' + gy + '" r="3" fill="#fff"/>';
-    h += '<circle cx="47.6" cy="60.8" r="1.4" fill="#fff"/><circle cx="77.6" cy="60.8" r="1.4" fill="#fff"/>';
-    if (g === 'grummel') h += '<path d="M37 51 L53 53.5M83 51 L67 53.5" stroke="' + L + '" stroke-width="3.2" stroke-linecap="round"/>';
+  // Kopf
+  h += oval(60, 56, 37, 31, F.kopf, 3);
+  // Zeichnungen auf dem Kopf
+  if (t === 'katze') h += '<path d="M53 29.5v7M60 27.5v8.5M67 29.5v7" stroke="' + F.streifen + '" stroke-width="3.6" stroke-linecap="round"/>';
+  if (t === 'tiger') h += strich('M60 26.5 v8.5 M50.5 28.5 Q53 33 50 37.5 M69.5 28.5 Q67 33 70 37.5', F.dunkel, 3.4) + strich('M23.5 50 L32 52.5 M23.2 58 L31 59 M96.5 50 L88 52.5 M96.8 58 L89 59', F.dunkel, 3);
+  if (t === 'fuchs') h += '<path d="M25 58 Q36 80 60 76 Q84 80 95 58 Q84 66 72 62 Q60 72 48 62 Q36 66 25 58 Z" fill="' + F.creme + '"/>';
+  if (t === 'hamster') h += flaeche('M24.5 60 Q27 85 60 86 Q93 85 95.5 60 Q88 68 76 66 Q68 64 60 60 Q52 64 44 66 Q32 68 24.5 60 Z', F.creme);
+  if (t === 'hund') h += oval(74, 53, 12, 11, F.dunkel, 0, ' opacity=".55"');
+  if (t === 'esel') h += flaeche('M50 27 Q54 16 58 26 Q61 14 64 26 Q68 17 70 28 Q60 33 50 27 Z', F.dunkel, 2);
+  if (t === 'pinguin') h += flaeche('M60 41 C52 31 28 34 28 57 C28 75 44 84 60 84 C76 84 92 75 92 57 C92 34 68 31 60 41 Z', F.creme);
+  if (t === 'waschbaer') h += oval(44, 41.5, 8, 4, F.creme) + oval(76, 41.5, 8, 4, F.creme)
+    + flaeche('M23.5 58 Q29 45 44 47 Q55 49 60 55 Q65 49 76 47 Q91 45 96.5 58 Q91 68 76 67 Q66 66 60 62 Q54 66 44 67 Q29 68 23.5 58 Z', F.dunkel);
+  if (t === 'eule') h += '<circle cx="45" cy="56" r="14" fill="' + F.creme + '" stroke="' + F.dunkel + '" stroke-width="2"/><circle cx="75" cy="56" r="14" fill="' + F.creme + '" stroke="' + F.dunkel + '" stroke-width="2"/>';
+  if (t === 'igel') h += flaeche('M25 47 C27 30 42 24.5 60 24.5 C78 24.5 93 30 95 47 L89 41 L85 48 L79 39 L74 46 L67 37 L62 44 L56 36 L50 44 L44 37 L39 46 L33 40 L29 48 Z', F.dunkel, 2.2);
+  if (t === 'schaf') [[37, 38, 6.5], [44, 31, 8], [53, 27, 8.5], [63, 26.5, 8.5], [72, 29.5, 8], [79, 36, 6.5]].forEach(function(k){ h += kreis(k[0], k[1], k[2], F.fell, 2.4); });
+  if (t === 'kueken') h += flaeche('M55 28 C51 18 57 15 60 22 C61 13 69 14 65 24 C70 19 76 23 67 28 Z', F.fell, 2.2);
+  if (t === 'einhorn'){
+    h += flaeche('M53.5 34 L60 1.5 L66.5 34 Z', '#ffd66e', 2.4) + strich('M56 27 L64 24.6 M57.2 20 L62.8 18.2 M58.4 13 L61.6 12', '#e0a43a', 1.8);
+    h += kreis(51, 34, 5.8, M[0], 2.2) + kreis(58.5, 32.5, 6, M[1], 2.2) + kreis(66, 34, 5.4, M[2], 2.2);
   }
-  h += '<path d="M56.6 63.2 Q60 61 63.4 63.2 Q61.2 66.8 60 66.8 Q58.8 66.8 56.6 63.2 Z" fill="#ff7fa0"/>';
-  h += g === 'grummel' ? '<path d="M54.5 71.5 Q60 67.5 65.5 71.5" fill="none" stroke="' + L + '" stroke-width="2.2" stroke-linecap="round"/>'
-    : '<path d="M53.6 68.2 Q56.8 72.6 60 68.6 Q63.2 72.6 66.4 68.2" fill="none" stroke="' + L + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>';
+  // Hängeohren (Hund) vor dem Kopf
+  if (t === 'hund'){
+    [true, false].forEach(function(l){ var x = function(v){ return X(v, l); };
+      h += '<path d="M' + x(30) + ' 34 Q' + x(14) + ' 38 ' + x(17) + ' 62 Q' + x(20) + ' 72 ' + x(29) + ' 66 Q' + x(34) + ' 50 ' + x(36) + ' 38 Z" fill="' + F.dunkel + '" stroke="' + L + '" stroke-width="3" stroke-linejoin="round"/>'; });
+  }
+  // Augenflecken (Panda)
+  if (t === 'panda') h += '<ellipse cx="44" cy="58" rx="11" ry="13" fill="' + F.dunkel + '" transform="rotate(25 44 58)"/><ellipse cx="76" cy="58" rx="11" ry="13" fill="' + F.dunkel + '" transform="rotate(-25 76 58)"/>';
+  // Bäckchen, Schnauze
+  var by = t === 'waschbaer' ? 72 : 67, bf = t === 'schwein' ? '#ff6f9a' : '#ff8fb0';
+  h += oval(32, by, 6.5, 3.8, bf, 0, ' opacity=".55"') + oval(88, by, 6.5, 3.8, bf, 0, ' opacity=".55"');
+  if (t === 'esel') h += oval(60, 72, 20, 14, F.creme, 2.4);
+  else if (t === 'waschbaer' || t === 'tiger' || t === 'einhorn') h += oval(60, 69.5, 15.5, 10, t === 'einhorn' ? '#fdeef6' : F.creme);
+  else if (t === 'loewe') h += oval(60, 68.5, 14.5, 9.5, F.creme);
+  else if (['fuchs', 'schwein', 'koala', 'hamster', 'pinguin', 'eule', 'kueken'].indexOf(t) < 0) h += oval(60, 67.5, 13.5, 9, F.creme);
+  if (t === 'katze' || t === 'maus' || t === 'tiger') h += '<path d="M29 63 L16 60M29 67.5 L15 68.5M91 63 L104 60M91 67.5 L105 68.5" stroke="' + L + '" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>';
+  // Augen
+  var hell = dunkleAugen ? '#ffffff' : L;
+  if (g === 'froh') h += '<path d="M37 58 Q45 49 53 58M67 58 Q75 49 83 58" fill="none" stroke="' + hell + '" stroke-width="3.4" stroke-linecap="round"/>';
+  else {
+    var ry = g === 'grummel' ? 5.2 : 8.8, gy = g === 'grummel' ? 55 : 52.6, auge = dunkleAugen ? '#111' : '#2a1f22';
+    h += '<ellipse cx="45" cy="56.5" rx="7.2" ry="' + ry + '" fill="' + auge + '"/><ellipse cx="75" cy="56.5" rx="7.2" ry="' + ry + '" fill="' + auge + '"/>';
+    h += '<circle cx="42.4" cy="' + gy + '" r="3" fill="#fff"/><circle cx="72.4" cy="' + gy + '" r="3" fill="#fff"/><circle cx="47.6" cy="60.8" r="1.4" fill="#fff"/><circle cx="77.6" cy="60.8" r="1.4" fill="#fff"/>';
+    if (g === 'grummel') h += '<path d="M37 51 L53 53.5M83 51 L67 53.5" stroke="' + hell + '" stroke-width="3.2" stroke-linecap="round"/>';
+  }
+  // Nase und Mund
+  var mundY = 0;
+  if (t === 'katze') h += '<path d="M56.6 63.2 Q60 61 63.4 63.2 Q61.2 66.8 60 66.8 Q58.8 66.8 56.6 63.2 Z" fill="' + F.nase + '"/>';
+  else if (t === 'hase' || t === 'maus' || t === 'hamster' || t === 'tiger' || t === 'schaf') h += flaeche('M57 63.4 Q60 61.6 63 63.4 Q61 66.4 60 66.4 Q59 66.4 57 63.4 Z', F.nase);
+  else if (t === 'esel') h += oval(54.5, 65.5, 2.3, 1.6, F.nase) + oval(65.5, 65.5, 2.3, 1.6, F.nase);
+  else if (t === 'einhorn') h += oval(55.5, 66.5, 1.9, 1.4, F.nase) + oval(64.5, 66.5, 1.9, 1.4, F.nase);
+  else if (t === 'schwein'){ h += oval(60, 66, 11, 7.8, F.nase, 2.2) + oval(56, 66, 1.9, 2.8, '#b4506d') + oval(64, 66, 1.9, 2.8, '#b4506d'); mundY = 9; }
+  else if (t === 'koala'){ h += oval(60, 64.5, 7, 9, F.nase) + oval(58, 60.5, 2, 1.3, '#fff', 0, ' opacity=".45"'); mundY = 8; }
+  else if (t === 'pinguin' || t === 'kueken') h += flaeche('M53.5 63.5 Q60 59 66.5 63.5 Q60 71 53.5 63.5 Z', F.nase, 1.6);
+  else if (t === 'eule') h += flaeche('M55 61.5 Q60 59.5 65 61.5 L60 71 Z', F.nase, 1.6);
+  else h += oval(60, 64.2, 5, 3.6, F.nase) + oval(58.6, 63.2, 1.6, 0.9, '#fff', 0, ' opacity=".5"');
+  if (t === 'hase' && g !== 'grummel') h += flaeche('M57.3 69.6 h5.4 v4.4 q0 1.4 -1.4 1.4 h-2.6 q-1.4 0 -1.4 -1.4 Z', '#fff', 1.3) + strich('M60 69.8 v5.4', L, 1.1);
+  if (!F.vogel){
+    h += '<g transform="translate(0 ' + mundY + ')">' + (g === 'grummel' ? '<path d="M54.5 71.5 Q60 67.5 65.5 71.5" fill="none" stroke="' + L + '" stroke-width="2.2" stroke-linecap="round"/>'
+      : '<path d="M53.6 68.2 Q56.8 72.6 60 68.6 Q63.2 72.6 66.4 68.2" fill="none" stroke="' + L + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>') + '</g>';
+  }
+  if (t === 'hund' && g !== 'grummel') h += '<path d="M57.5 70.5 Q60 77 62.5 70.5 Z" fill="#ff7f9c" stroke="' + L + '" stroke-width="1.4"/>';
+
+  // Hals-Accessoires
   if (d.hals === 'fliege') h += '<path d="M60 84 L46 77 L46 91 Z M60 84 L74 77 L74 91 Z" fill="#e53935" stroke="' + L + '" stroke-width="2" stroke-linejoin="round"/><circle cx="60" cy="84" r="4" fill="#b71c1c" stroke="' + L + '" stroke-width="1.6"/>';
   if (d.hals === 'medaille') h += '<path d="M50 80 L60 94 L70 80" fill="none" stroke="#1e63d6" stroke-width="4.5" stroke-linejoin="round"/><circle cx="60" cy="97" r="7.5" fill="#ffcd2e" stroke="#a87400" stroke-width="2"/><path d="M60 92.6 l1.5 3 3.3.4-2.4 2.3.6 3.3-3-1.6-3 1.6.6-3.3-2.4-2.3 3.3-.4z" fill="#fff3b0"/>';
-  if (arm){   // erhobene Pfote mit Zehenbohnen
-    var s = arm < 0;
-    var X = function(x){ return s ? x : 120 - x; };
-    h += '<path d="M' + X(42) + ' 88 Q' + X(28) + ' 82 ' + X(22) + ' 66" fill="none" stroke="' + L + '" stroke-width="15" stroke-linecap="round"/>';
-    h += '<path d="M' + X(42) + ' 88 Q' + X(28) + ' 82 ' + X(22) + ' 66" fill="none" stroke="' + F.fell + '" stroke-width="10" stroke-linecap="round"/>';
-    h += '<circle cx="' + X(20) + '" cy="57" r="11" fill="' + F.creme + '" stroke="' + L + '" stroke-width="2.8"/>';
-    h += '<ellipse cx="' + X(20) + '" cy="60.5" rx="5.4" ry="4.4" fill="#ff9ebb"/>';
-    h += '<circle cx="' + X(13.5) + '" cy="52.5" r="2.5" fill="#ff9ebb"/><circle cx="' + X(20) + '" cy="49.6" r="2.6" fill="#ff9ebb"/><circle cx="' + X(26.5) + '" cy="52.5" r="2.5" fill="#ff9ebb"/>';
+  // erhobene Pfote (bei Vögeln: Flügel)
+  if (arm){
+    var li = arm < 0, x = function(v){ return X(v, li); };
+    if (F.vogel){
+      h += flaeche('M' + x(44) + ' 86 C' + x(32) + ' 88 ' + x(17) + ' 76 ' + x(15) + ' 52 C' + x(25) + ' 57 ' + x(37) + ' 66 ' + x(46) + ' 76 Z', F.hand, 2.8);
+    } else {
+      h += '<path d="M' + x(42) + ' 88 Q' + x(28) + ' 82 ' + x(22) + ' 66" fill="none" stroke="' + L + '" stroke-width="15" stroke-linecap="round"/>';
+      h += '<path d="M' + x(42) + ' 88 Q' + x(28) + ' 82 ' + x(22) + ' 66" fill="none" stroke="' + (t === 'panda' ? F.dunkel : F.fell) + '" stroke-width="10" stroke-linecap="round"/>';
+      h += '<circle cx="' + x(20) + '" cy="57" r="11" fill="' + F.pfote + '" stroke="' + L + '" stroke-width="2.8"/>';
+      h += '<ellipse cx="' + x(20) + '" cy="60.5" rx="5.4" ry="4.4" fill="#ff9ebb"/><circle cx="' + x(13.5) + '" cy="52.5" r="2.5" fill="#ff9ebb"/><circle cx="' + x(20) + '" cy="49.6" r="2.6" fill="#ff9ebb"/><circle cx="' + x(26.5) + '" cy="52.5" r="2.5" fill="#ff9ebb"/>';
+    }
   }
+  // Kopf- und Augen-Accessoires
   if (d.augen === 'brille') h += '<rect x="34.5" y="48.5" width="21.5" height="15" rx="5.5" fill="#161616"/><rect x="64" y="48.5" width="21.5" height="15" rx="5.5" fill="#161616"/><path d="M56 54 Q60 51.5 64 54" fill="none" stroke="#161616" stroke-width="3"/><path d="M38.5 52.5 l5 -2.6M68 52.5 l5 -2.6" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/>';
-  if (d.augen === 'herzbrille'){
-    var herz = function(cx){ return '<path d="M' + cx + ' 63.5 C' + (cx - 13) + ' 55 ' + (cx - 9) + ' 45.5 ' + cx + ' 51.5 C' + (cx + 9) + ' 45.5 ' + (cx + 13) + ' 55 ' + cx + ' 63.5 Z" fill="#ff4f86" stroke="#b0164a" stroke-width="1.8"/>'; };
-    h += herz(45) + herz(75) + '<path d="M54 54 Q60 51.5 66 54" fill="none" stroke="#b0164a" stroke-width="2.6"/>';
-  }
+  if (d.augen === 'herzbrille'){ var herz = function(cx){ return '<path d="M' + cx + ' 63.5 C' + (cx - 13) + ' 55 ' + (cx - 9) + ' 45.5 ' + cx + ' 51.5 C' + (cx + 9) + ' 45.5 ' + (cx + 13) + ' 55 ' + cx + ' 63.5 Z" fill="#ff4f86" stroke="#b0164a" stroke-width="1.8"/>'; }; h += herz(45) + herz(75) + '<path d="M54 54 Q60 51.5 66 54" fill="none" stroke="#b0164a" stroke-width="2.6"/>'; }
   if (d.kopf === 'stirnband') h += '<path d="M26 44 Q60 31 94 44 L93.5 51 Q60 38.5 26.5 51 Z" fill="#e53935" stroke="' + L + '" stroke-width="2"/><path d="M27 47.5 Q60 35 93 47.5" fill="none" stroke="#fff" stroke-width="2"/>';
   if (d.kopf === 'krone') h += '<path d="M42 30 L44 12 L52 22 L60 7 L68 22 L76 12 L78 30 Z" fill="#ffcd2e" stroke="#a87400" stroke-width="2.4" stroke-linejoin="round"/><circle cx="60" cy="21" r="2.8" fill="#e53935"/><circle cx="49" cy="25" r="2.2" fill="#1e88e5"/><circle cx="71" cy="25" r="2.2" fill="#1e88e5"/>';
   if (d.kopf === 'partyhut') h += '<g transform="rotate(14 60 30)"><path d="M60 2 L74 31 L46 31 Z" fill="#7c4dff" stroke="' + L + '" stroke-width="2.2" stroke-linejoin="round"/><path d="M53.2 17 L66.8 17 M49.8 24 L70.2 24" stroke="#ffd54f" stroke-width="3.2"/><circle cx="60" cy="3" r="4.5" fill="#ff5c8a" stroke="' + L + '" stroke-width="1.8"/></g>';
@@ -514,7 +681,7 @@ function parade(g){
 }
 
 
-// ===================== Spiel 3: High Five mit der Katze =====================
+// ===================== Spiel 3: High Five mit dem Begleiter =====================
 function highfive(g){
   var S;
   function geo(){ var gr = Math.max(140, Math.min(g.W * 0.92, g.H * 0.68)); return { gr: gr, cx: g.W / 2, cy: g.H * 0.56 }; }
@@ -574,15 +741,15 @@ function highfive(g){
       if (oben){ ctx.fillStyle = 'rgba(134,239,172,.10)'; ctx.fillRect(S.seite < 0 ? 0 : W / 2, 0, W / 2, H); }
       ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1; linie(ctx, W / 2, 0, W / 2, H);
       katzeMalen(ctx, bild(oben ? S.seite : 0, S.gesicht), G.cx, G.cy, G.gr);
-      if (oben){ var P = pfote(G, S.seite); textMalen(ctx, 'Let’s Miau!', P.x + (S.seite < 0 ? 52 : -52), P.y - G.gr * 0.2, Math.min(26, W * 0.065), '#fde68a', 1); }
+      if (oben){ var P = pfote(G, S.seite); textMalen(ctx, S.basis.tier === 'katze' ? 'Let’s Miau!' : 'High Five!', P.x + (S.seite < 0 ? 52 : -52), P.y - G.gr * 0.2, Math.min(26, W * 0.065), '#fde68a', 1); }
       S.funken.forEach(function(f){ sternMalen(ctx, f.x, f.y, 5 * (1 - f.t / 0.6) + 1, '#fde047'); });
       S.effekte.forEach(function(e){ textMalen(ctx, e.text, e.x, e.y - e.t * 40, Math.min(34, W * 0.085), e.farbe, 1 - e.t / 0.9); });
-      if (S.punkte === 0 && S.leben === 3 && S.phase === 'warten') textMalen(ctx, 'Warte, bis sie die Pfote hebt …', W / 2, H * 0.12, Math.min(22, W * 0.055), '#e9d5ff', 0.9);
+      if (S.punkte === 0 && S.leben === 3 && S.phase === 'warten') textMalen(ctx, 'Warte, bis die Pfote hochgeht …', W / 2, H * 0.12, Math.min(22, W * 0.055), '#e9d5ff', 0.9);
     }
   };
 }
 
-// ===================== Spiel 4: Katzen-Sprint =====================
+// ===================== Spiel 4: Begleiter-Sprint =====================
 function sprint(g){
   var S;
   function geo(){ var k = Math.max(56, Math.min(g.W * 0.24, g.H * 0.2)); return { k: k, boden: g.H * 0.8, x: g.W * 0.24 }; }
@@ -737,8 +904,8 @@ function muckibudeStarten(){
     ctx.fillStyle = '#9aa3b5'; ctx.fillRect(px - hb / 2, py - K * 0.014, hb, K * 0.028);
     ctx.fillStyle = '#1f2433'; ctx.strokeStyle = '#5b6478'; ctx.lineWidth = Math.max(1.5, K * 0.008);
     [-1, 1].forEach(function(s){ var x0 = px + s * hb / 2 - sw * 0.35; ctx.fillRect(x0, py - sw, sw * 0.7, sw * 2); ctx.strokeRect(x0, py - sw, sw * 0.7, sw * 2); });
-    var F = FELL[meinFell()];
-    ctx.fillStyle = F.creme; ctx.strokeStyle = F.linie; ctx.lineWidth = Math.max(2, K * 0.022);
+    var F = tierFarben(katzeN);
+    ctx.fillStyle = F.hand; ctx.strokeStyle = F.linie; ctx.lineWidth = Math.max(2, K * 0.022);
     ctx.beginPath(); ctx.arc(px, py, K * 0.055, 0, TAU); ctx.fill(); ctx.stroke();
     pops.forEach(function(p){ textMalen(ctx, p.text, p.x, p.y - p.t * 60, Math.min(26, W * 0.065), '#86efac', 1 - p.t / 0.8); });
     if (m.gesamt < 5) textMalen(ctx, 'Tippen = eine Wiederholung', cx, H * 0.9, Math.min(20, W * 0.05), '#e2e8f0', 0.9);
@@ -1031,8 +1198,7 @@ EFFEKT.regenbogen = function(W, H){
 EFFEKT.parade = function(W, H){
   var felle = Object.keys(FELL), k = Math.max(64, Math.min(W * 0.24, 120)), katzen = [];
   for (var i = 0; i < 6; i++){
-    var o = { fell: i === 0 ? meinFell() : felle[(i + 1) % felle.length], gesicht: i % 2 ? 'froh' : '', arm: i % 3 === 2 ? 1 : 0 };
-    if (i === 0) o.deko = meineDeko();
+    var o = i === 0 ? meineKatze({ gesicht: 'froh' }) : { tier: 'katze', fell: felle[(i + 1) % felle.length], gesicht: i % 2 ? 'froh' : '', arm: i % 3 === 2 ? 1 : 0 };
     katzen.push({ x: -k * (0.6 + i * 0.95), opt: o, ph: zufall(0, TAU), v: W * zufall(0.44, 0.52) });
     katzeBild(o);
   }
@@ -1050,14 +1216,14 @@ EFFEKT.parade = function(W, H){
 function katzeFeier(){
   var alt = document.querySelector('.ogt-mini-katzenfeier'); if (alt) alt.remove();
   var box = el('div', 'ogt-mini-katzenfeier');
-  box.innerHTML = '<div class="ogt-mini-sprech">Let’s Miau!</div><button type="button" class="ogt-mini-katze-gross" aria-label="Katze abklatschen">' + katzeSvg(meineKatze({ arm: 1 })) + '</button>';
+  box.innerHTML = '<div class="ogt-mini-sprech">Let’s Miau!</div><button type="button" class="ogt-mini-katze-gross" aria-label="Katze abklatschen">' + katzeSvg({ tier: 'katze', arm: 1, deko: meineDeko(), fell: meinFell() }) + '</button>';
   document.body.appendChild(box);
   requestAnimationFrame(function(){ requestAnimationFrame(function(){ box.classList.add('da'); }); });
   var knopf = box.querySelector('button'), sprech = box.querySelector('.ogt-mini-sprech'), fertig = false, zeit = setTimeout(weg, 4500);
   knopf.addEventListener('pointerdown', function(ev){
     if (ev.cancelable) ev.preventDefault();
     if (fertig) return; fertig = true;
-    knopf.innerHTML = katzeSvg(meineKatze({ arm: 1, gesicht: 'froh' }));
+    knopf.innerHTML = katzeSvg({ tier: 'katze', arm: 1, gesicht: 'froh', deko: meineDeko(), fell: meinFell() });
     sprech.textContent = 'Patsch! 🙌'; box.classList.add('patsch');
     burst(ev.clientX, ev.clientY);
     clearTimeout(zeit); zeit = setTimeout(weg, 1500);
@@ -1102,12 +1268,13 @@ function ergebnisKarte(html, dauer){
 
 // ===================== Startseite: Punkte-Karte =====================
 var SPRUECHE = ['Let’s Miau!', 'Auf!', 'Miau!', 'Lass knacken!', 'Schnurr …', 'Gut gemacht!', '*blinzel*'];
+function sprueche(){ var t = meinTier(); return t === 'katze' ? SPRUECHE : [TIERE[t].ruf, 'Auf!', 'Lass knacken!', 'Gut gemacht!', '*blinzel*', 'Hehe!']; }
 function karteFuellen(st){
   var platz = document.getElementById('ogt-mini-platz'); if (!platz) return;
   st = st || stand();
   var z = naechstesZiel(), pct = z ? begrenzt(Math.round(st.konto / Math.max(1, z.preis) * 100), 3, 100) : 100;
   platz.innerHTML = '<section class="card ogt-mini-karte" aria-label="Punkte und Spiele">'
-    + '<button type="button" class="ogt-mini-begleiter" data-mini="streicheln" aria-label="Katze antippen">' + katzeSvg(meineKatze()) + '</button>'
+    + '<button type="button" class="ogt-mini-begleiter" data-mini="streicheln" aria-label="Begleiter antippen">' + katzeSvg(meineKatze()) + '</button>'
     + '<p class="eyebrow">Punkte & Spiele' + (TEST ? ' · Testplan' : '') + '</p>'
     + '<p class="ogt-mini-zahl"><span aria-hidden="true">⭐</span> ' + zahl(st.konto) + ' <small>Punkte</small></p>'
     + (z ? '<div class="ogt-mini-balken" aria-hidden="true"><i style="width:' + pct + '%"></i></div><p class="small muted ogt-mini-weiter">'
@@ -1122,7 +1289,7 @@ function streicheln(b){
   var karte = b.closest('.ogt-mini-karte');
   if (karte){
     var alt = karte.querySelector('.ogt-mini-sprechblase'); if (alt) alt.remove();
-    var s = el('div', 'ogt-mini-sprechblase' + (gross ? ' gross' : '')); s.textContent = SPRUECHE[Math.floor(Math.random() * SPRUECHE.length)];
+    var s = el('div', 'ogt-mini-sprechblase' + (gross ? ' gross' : '')); var l = sprueche(); s.textContent = l[Math.floor(Math.random() * l.length)];
     karte.appendChild(s); setTimeout(function(){ s.remove(); }, 1700);
   }
   setTimeout(function(){ if (b.isConnected) b.innerHTML = katzeSvg(meineKatze(gross ? { arm: 1 } : {})); }, 800);
@@ -1135,23 +1302,25 @@ function bildFuer(kennung){
   if (d.art === 'spiel') return '<span class="ogt-mini-emoji">' + SPIELE[d.id].icon + '</span>';
   if (d.art === 'feier'){
     var f = FEIERN.filter(function(x){ return x.id === d.id; })[0];
-    return f.icon === 'katze' ? katzeSvg(meineKatze({ arm: 1 })) : (f.icon === 'ball' ? ballSvg() : (f.icon === 'katzen' ? katzenSvg() : '<span class="ogt-mini-emoji">' + f.icon + '</span>'));
+    return f.icon === 'katze' ? katzeSvg({ tier: 'katze', arm: 1, deko: meineDeko(), fell: meinFell() }) : (f.icon === 'ball' ? ballSvg() : (f.icon === 'katzen' ? katzenSvg() : '<span class="ogt-mini-emoji">' + f.icon + '</span>'));
   }
-  if (d.art === 'deko'){ var o = {}; o[d.platz] = d.id; return katzeSvg({ deko: o, fell: meinFell() }); }
-  return katzeSvg({ fell: d.id });
+  if (d.art === 'deko'){ var o = {}; o[d.platz] = d.id; return katzeSvg({ tier: meinTier(), deko: o, fell: meinFell() }); }
+  if (d.art === 'tier') return katzeSvg({ tier: d.id, fell: meinFell() });
+  return katzeSvg({ tier: 'katze', fell: d.id });
 }
 function aktiv(kennung){
   var d = ding(kennung); if (!d || !besitzt(kennung)) return false;
   if (d.art === 'feier') return aktiveFeier() === d.id;
   if (d.art === 'deko') return meineDeko()[d.platz] === d.id;
   if (d.art === 'fell') return meinFell() === d.id;
+  if (d.art === 'tier') return meinTier() === d.id;
   return false;
 }
 function dingKachel(kennung, st){
   var d = ding(kennung); if (!d) return '';
   var hat = besitzt(kennung), an = aktiv(kennung), geht = !hat && st.konto >= d.preis, zeile;
-  if (an) zeile = d.art === 'deko' ? '✓ trägt sie' : '✓ aktiv';
-  else if (hat) zeile = d.art === 'deko' ? 'anziehen' : 'auswählen';
+  if (an) zeile = d.art === 'deko' ? '✓ an' : (d.art === 'tier' ? '✓ dabei' : '✓ aktiv');
+  else if (hat) zeile = d.art === 'deko' ? 'anziehen' : (d.art === 'tier' ? 'mitnehmen' : 'auswählen');
   else zeile = '⭐ ' + zahl(d.preis);
   return '<button type="button" class="ogt-mini-ding' + (an ? ' aktiv' : '') + (hat ? ' hat' : (geht ? ' geht' : ' teuer')) + '" data-mini="' + (hat ? 'waehlen' : 'kaufen') + '" data-k="' + esc(kennung) + '" aria-pressed="' + (an ? 'true' : 'false') + '">'
     + '<span class="ogt-mini-bild">' + bildFuer(kennung) + '</span><span class="ogt-mini-name">' + esc(d.n) + '</span>'
@@ -1181,16 +1350,21 @@ function tabFuellen(st){
   var platz = document.getElementById('ogt-mini-tab'); if (!platz) return;
   st = st || stand();
   var h = '<section class="card ogt-mini-karte ogt-mini-kopfkarte" aria-labelledby="ogt-mini-h">'
-    + '<button type="button" class="ogt-mini-begleiter gross" data-mini="streicheln" aria-label="Katze antippen">' + katzeSvg(meineKatze({ arm: 1 })) + '</button>'
+    + '<button type="button" class="ogt-mini-begleiter gross" data-mini="streicheln" aria-label="Begleiter antippen">' + katzeSvg(meineKatze({ arm: 1 })) + '</button>'
     + '<p class="eyebrow">Dein Punktestand' + (TEST ? ' · Testplan' : '') + '</p>'
     + '<p class="ogt-mini-zahl" id="ogt-mini-h"><span aria-hidden="true">⭐</span> ' + zahl(st.konto) + ' <small>Punkte</small></p>'
     + '<p class="small muted ogt-mini-weiter">Insgesamt gesammelt: ' + zahl(st.verdient) + ' ⭐' + (st.ausgegeben ? ' · ausgegeben: ' + zahl(st.ausgegeben) + ' ⭐' : '') + '</p>'
     + regelnHtml(st) + '</section>';
+  h += '<section class="card"><p class="eyebrow">Dein Begleiter im Training</p><p class="small muted ogt-mini-weiter">' + esc(TIERE[meinTier()].n)
+    + ' läuft in deinen Einheiten unten mit, feiert jeden Satz und sagt dir die nächste Übung mit dem „Achte auf“-Hinweis aus deinem Plan. Am Ende gibt’s ein High Five. Tippen geht durch ihn hindurch – er stört nie beim Abhaken.</p>'
+    + '<div class="ogt-mini-reihe"><button type="button" class="' + (begleiterAn() ? 'ogt-mini-los' : '') + '" data-mini="begleiter-umschalten" aria-pressed="' + (begleiterAn() ? 'true' : 'false') + '">'
+    + (begleiterAn() ? '✓ Läuft im Training mit' : 'Im Training mitlaufen lassen') + '</button></div></section>';
   h += '<section class="card"><p class="eyebrow">Minispiele</p><div class="ogt-mini-liste">' + spielListe().map(function(id){ return spielZeile(id, st); }).join('') + '</div></section>';
   h += '<section class="card"><p class="eyebrow">Shop</p><p class="small muted ogt-mini-weiter">Antippen zum Kaufen. Gekauftes antippen zum Auswählen.</p>'
+    + '<h3 class="ogt-mini-h3">Begleiter</h3><div class="ogt-mini-raster">' + Object.keys(TIERE).map(function(t){ return dingKachel('tier:' + t, st); }).join('') + '</div>'
     + '<h3 class="ogt-mini-h3">Feier nach dem Training</h3><div class="ogt-mini-raster">' + FEIERN.map(function(f){ return dingKachel('feier:' + f.id, st); }).join('') + '</div>'
-    + '<h3 class="ogt-mini-h3">Accessoires für die Katze</h3><div class="ogt-mini-raster">' + DEKO.map(function(d){ return dingKachel('deko:' + d.id, st); }).join('') + '</div>'
-    + '<h3 class="ogt-mini-h3">Fellfarbe</h3><div class="ogt-mini-raster">' + Object.keys(FELL).map(function(f){ return dingKachel('fell:' + f, st); }).join('') + '</div></section>';
+    + '<h3 class="ogt-mini-h3">Accessoires für deinen Begleiter</h3><div class="ogt-mini-raster">' + DEKO.map(function(d){ return dingKachel('deko:' + d.id, st); }).join('') + '</div>'
+    + '<h3 class="ogt-mini-h3">Fellfarbe (Katze)</h3><div class="ogt-mini-raster">' + Object.keys(FELL).map(function(f){ return dingKachel('fell:' + f, st); }).join('') + '</div></section>';
   if (TEST) h += '<section class="card"><p class="eyebrow">Nur im Testplan</p><p class="small muted ogt-mini-weiter">Zum Ausprobieren ohne Training. In den echten Plänen gibt es diese Knöpfe nicht.</p>'
     + '<div class="ogt-mini-reihe"><button type="button" data-mini="test-plus">+100 ⭐</button><button type="button" data-mini="test-null">Testpunkte auf 0</button><button type="button" data-mini="test-alles">Käufe, Boni und Muckibude zurücksetzen</button></div></section>';
   h += '<p class="ogt-mini-klein ogt-mini-fuss">Punkte, Käufe, Rekorde und Spielstände bleiben auf diesem Handy – sie werden nicht verschickt.</p>';
@@ -1218,7 +1392,111 @@ function waehlen(kennung){
   var d = ding(kennung); if (!d || !besitzt(kennung)) return;
   if (d.art === 'feier'){ ST.feier = d.id; sichern(); neuZeichnen(); feiern(d.id); return; }
   if (d.art === 'deko'){ ST.deko[d.platz] = ST.deko[d.platz] === d.id ? '' : d.id; sichern(); neuZeichnen(); return; }
-  if (d.art === 'fell'){ ST.fell = d.id; sichern(); neuZeichnen(); }
+  if (d.art === 'fell'){ ST.fell = d.id; sichern(); neuZeichnen(); begleiterBild(); }
+  if (d.art === 'tier'){ ST.tier = d.id; sichern(); neuZeichnen(); begleiterBild(); }
+}
+
+// ===================== Begleiter im Training (Runde 3) =====================
+// Läuft unten im Bild mit, solange eine Einheit offen ist: begrüßt, nennt die nächste Übung mit dem „Achte auf“-Hinweis
+// aus dem Plan (nichts Neues erfunden), feiert jeden Satz und jede fertige Übung. Antippen geht durch ihn hindurch,
+// er blockiert nie einen Knopf. Ausschaltbar im Reiter „Spiele“.
+var BG = { el: null, bild: null, blase: null, sid: '', wander: 0, blaseZeit: 0, aktionZeit: 0, bildZeit: 0 };
+var SATZ_SPRUECHE = ['Stark!', 'Sauber!', 'Weiter so!', 'Komm, nächster Satz!', 'Auf!', 'Läuft!', 'Lass knacken!'];
+var UEBUNG_SPRUECHE = ['Übung geschafft! 💪', 'Abgehakt!', 'Wie ein Profi!', 'Weg damit!'];
+function begleiterAn(){ return ST.begleiterAus !== 1; }
+function kurz(text, max){
+  text = String(text || '').replace(/\s+/g, ' ').trim();
+  var i = text.search(/[.!?](\s|$)/);
+  if (i > 20 && i < text.length - 1) text = text.slice(0, i + 1);
+  return text.length > max ? text.slice(0, max - 1).replace(/\s+\S*$/, '') + ' …' : text;
+}
+function naechsteUebung(s){
+  var u = s.uebungen.filter(function(x){ return !x.fertig && !x.opt; })[0];
+  return u || s.uebungen.filter(function(x){ return !x.fertig; })[0] || null;
+}
+function begleiterBild(extra, ms){
+  if (!BG.bild) return;
+  BG.bild.innerHTML = katzeSvg(meineKatze(extra || {}));
+  clearTimeout(BG.bildZeit);
+  if (ms) BG.bildZeit = setTimeout(function(){ if (BG.bild) BG.bild.innerHTML = katzeSvg(meineKatze()); }, ms);
+}
+function sagen(text, ms){
+  if (!BG.el) return;
+  BG.blase.textContent = text; BG.blase.hidden = false;
+  BG.blase.classList.remove('neu'); void BG.blase.offsetWidth; BG.blase.classList.add('neu');
+  var r = BG.el.getBoundingClientRect(); BG.blase.classList.toggle('rechts', r.left + r.width / 2 > window.innerWidth / 2);
+  clearTimeout(BG.blaseZeit); BG.blaseZeit = setTimeout(function(){ if (BG.blase) BG.blase.hidden = true; }, ms || 2600);
+}
+function aktion(art, ms){
+  if (!BG.el || RUHIG) return;
+  BG.el.classList.remove('huepf', 'moonwalk', 'tanz'); void BG.el.offsetWidth; BG.el.classList.add(art);
+  clearTimeout(BG.aktionZeit); BG.aktionZeit = setTimeout(function(){ if (BG.el) BG.el.classList.remove(art); }, ms || 900);
+}
+function begleiterHin(){
+  if (BG.el) return;
+  var b = el('div', 'ogt-mini-bg');
+  b.innerHTML = '<div class="ogt-mini-bg-blase" role="status" hidden></div><div class="ogt-mini-bg-tier"></div>';
+  document.body.appendChild(b); document.body.classList.add('ogt-mini-mit-bg');
+  BG.el = b; BG.blase = b.querySelector('.ogt-mini-bg-blase'); BG.bild = b.querySelector('.ogt-mini-bg-tier');
+  b.style.left = '12px';
+  begleiterBild();
+  clearInterval(BG.wander); BG.wander = setInterval(wandern, 7000);
+}
+function begleiterWeg(){
+  if (!BG.el) return;
+  clearInterval(BG.wander); clearTimeout(BG.blaseZeit); clearTimeout(BG.aktionZeit); clearTimeout(BG.bildZeit);
+  BG.el.remove(); document.body.classList.remove('ogt-mini-mit-bg');
+  BG.el = BG.bild = BG.blase = null; BG.sid = '';
+}
+function wandern(){
+  if (!BG.el || document.hidden || RUHIG || (BG.blase && !BG.blase.hidden)) return;
+  var ziel = Math.round(zufall(12, Math.max(12, window.innerWidth - 100)));
+  BG.el.classList.add('laeuft'); BG.el.style.left = ziel + 'px';
+  setTimeout(function(){ if (BG.el) BG.el.classList.remove('laeuft'); }, 1900);
+}
+function zeigeNaechste(u, erste){
+  begleiterBild({ arm: 1 }, 1800);
+  sagen((erste ? 'Erste Übung: ' : 'Nächste Übung: ') + u.n + (u.cue ? '. Achte auf: ' + kurz(u.cue, 90) : ' – lass knacken!'), 5000);
+}
+function begleiterPruefen(){
+  var s = A.sitzung ? A.sitzung() : null;
+  if (!s || !begleiterAn() || s.fertig){ begleiterWeg(); return; }
+  var neu = !BG.el || BG.sid !== s.sid;
+  begleiterHin();
+  if (!neu) return;
+  BG.sid = s.sid; begleiterBild({ arm: 1, gesicht: 'froh' }, 2000); aktion('huepf');
+  sagen(TIERE[meinTier()].ruf, 2300);
+  setTimeout(function(){ var t = A.sitzung && A.sitzung(), u = t && naechsteUebung(t); if (u && BG.el && BG.sid === t.sid) zeigeNaechste(u, !t.uebungen.some(function(x){ return x.begonnen; })); }, 2500);
+}
+function begleiterSatz(d){
+  if (!BG.el) return;
+  var s = A.sitzung && A.sitzung(); if (!s) return;
+  var u = d && d.x ? s.uebungen.filter(function(x){ return x.x === d.x; })[0] : null;
+  if (s.uebungen.filter(function(x){ return !x.opt; }).every(function(x){ return x.fertig; })){
+    aktion('tanz', 1700); begleiterBild({ arm: 1, gesicht: 'froh' }, 2500); sagen('Alles geschafft – jetzt „Training speichern“! 🎉', 4500); return;
+  }
+  if ((u && u.fertig) || (d && d.block != null)){
+    aktion('moonwalk', 1700); begleiterBild({ gesicht: 'froh' }, 1600); sagen(UEBUNG_SPRUECHE[Math.floor(Math.random() * UEBUNG_SPRUECHE.length)], 1700);
+    setTimeout(function(){ var t = A.sitzung && A.sitzung(), n = t && naechsteUebung(t); if (n && BG.el) zeigeNaechste(n, false); }, 1900);
+    return;
+  }
+  aktion('huepf'); begleiterBild({ gesicht: 'froh' }, 700);
+  sagen(SATZ_SPRUECHE[Math.floor(Math.random() * SATZ_SPRUECHE.length)], 1500);
+}
+// Am Ende der Einheit: der Begleiter und eine kleine Katze klatschen sich ab
+function begleiterFinale(){
+  if (!begleiterAn() || RUHIG) return;
+  var alt = document.querySelector('.ogt-mini-finale'); if (alt) alt.remove();
+  var freundFell = meinTier() === 'katze' && meinFell() === 'grau' ? 'orange' : 'grau';
+  var box = el('div', 'ogt-mini-finale');
+  box.setAttribute('aria-hidden', 'true');
+  box.innerHTML = '<div class="ogt-mini-fin-a">' + katzeSvg(meineKatze({ arm: 1, gesicht: 'froh' })) + '</div>'
+    + '<div class="ogt-mini-fin-b">' + katzeSvg({ tier: 'katze', fell: freundFell, arm: -1, gesicht: 'froh' }) + '</div><div class="ogt-mini-fin-text">Patsch! 🙌</div>';
+  document.body.appendChild(box);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ box.classList.add('da'); }); });
+  setTimeout(function(){ box.classList.add('patsch'); var r = box.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height * 0.45); }, 1050);
+  setTimeout(function(){ box.classList.add('weg'); }, 3100);
+  setTimeout(function(){ box.remove(); }, 3700);
 }
 
 // ===================== Signale aus der App =====================
@@ -1251,9 +1529,10 @@ function beiFertig(d){
 }
 window.addEventListener('ogt-mini', function(ev){
   var d = (ev && ev.detail) || {};
-  if (d.art === 'render') beiRender();
+  if (d.art === 'render'){ beiRender(); begleiterPruefen(); }
   else if (d.art === 'uebung') pop('+' + (((d.d && d.d.n) || 1) * REGEL.uebung) + ' ⭐');
-  else if (d.art === 'fertig') beiFertig(d.d || {});
+  else if (d.art === 'satz') begleiterSatz(d.d || {});
+  else if (d.art === 'fertig'){ beiFertig(d.d || {}); setTimeout(begleiterFinale, aktiveFeier() === 'katze' ? 4900 : 900); }
 });
 document.addEventListener('click', function(ev){
   var b = ev.target && ev.target.closest ? ev.target.closest('[data-mini]') : null; if (!b) return;
@@ -1272,15 +1551,17 @@ document.addEventListener('click', function(ev){
       var d = ding(k);
       if (kaufen(k)){
         zuKauf(); burst(window.innerWidth / 2, window.innerHeight * 0.45); neuZeichnen();
-        hinweis('Gekauft: ' + d.n + (d.art === 'spiel' ? ' – viel Spaß!' : (d.art === 'deko' ? ' – sie trägt es jetzt' : ' – ist jetzt aktiv')));
+        hinweis('Gekauft: ' + d.n + (d.art === 'spiel' ? ' – viel Spaß!' : (d.art === 'deko' ? ' – ist jetzt an' : (d.art === 'tier' ? ' – ist jetzt dein Begleiter' : ' – ist jetzt aktiv'))));
+        begleiterBild();
         if (d.art === 'feier') setTimeout(function(){ feiern(d.id); }, 300);
       } else { zuKauf(); hinweis('Das hat nicht geklappt – zu wenig Punkte?'); }
       break;
     case 'waehlen': waehlen(k); break;
+    case 'begleiter-umschalten': ST.begleiterAus = begleiterAn() ? 1 : 0; sichern(); neuZeichnen(); hinweis(begleiterAn() ? 'Dein Begleiter läuft im Training mit' : 'Begleiter im Training ausgeblendet'); break;
     case 'test-plus': if (TEST){ ST.bonus = (+ST.bonus || 0) + 100; ST.letzte = stand().verdient; sichern(); neuZeichnen(); hinweis('+100 Testpunkte'); } break;
     case 'test-null': if (TEST){ ST.bonus = 0; ST.letzte = stand().verdient; sichern(); neuZeichnen(); hinweis('Testpunkte auf 0'); } break;
     case 'test-alles':
-      if (TEST){ ST.gekauft = {}; ST.feier = 'konfetti'; ST.deko = { kopf: '', augen: '', hals: '' }; ST.fell = 'orange'; ST.entdeckt = {}; ST.mucki = null;
+      if (TEST){ ST.gekauft = {}; ST.feier = 'konfetti'; ST.deko = { kopf: '', augen: '', hals: '' }; ST.fell = 'orange'; ST.tier = 'katze'; ST.entdeckt = {}; ST.mucki = null;
         ST.letzte = stand().verdient; sichern(); neuZeichnen(); hinweis('Käufe, Boni und Muckibude zurückgesetzt'); }
       break;
   }
@@ -1295,6 +1576,35 @@ document.addEventListener('keydown', function(ev){
 var CSS = [
   '.tabs-in:has(.tab:nth-child(6)) .tab{font-size:11.5px;padding-left:0;padding-right:0}',   // sechs Reiter (mit „Spiele“): Beschriftung passt ganz
   '.ogt-mini-karte{position:relative;gap:8px}',
+  'body.ogt-mini-mit-bg{padding-bottom:calc(172px + env(safe-area-inset-bottom,0px))}',
+  '.ogt-mini-bg{position:fixed;bottom:calc(74px + env(safe-area-inset-bottom,0px));left:12px;z-index:42;width:88px;height:88px;transition:left 1.8s ease-in-out;pointer-events:none}',
+  '.ogt-mini-bg-tier{width:100%;height:100%}',
+  '.ogt-mini-bg-tier svg{width:100%;height:100%;display:block;filter:drop-shadow(0 4px 8px rgba(0,0,0,.25))}',
+  '.ogt-mini-bg-blase{position:absolute;bottom:94px;left:0;width:max-content;max-width:min(260px,calc(100vw - 40px));background:#fff;color:#1b1b1b;font:700 14px/1.3 var(--font-body,system-ui,sans-serif);padding:8px 11px;border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.25)}',
+  ".ogt-mini-bg-blase::after{content:'';position:absolute;left:32px;bottom:-7px;border:7px solid transparent;border-top-color:#fff;border-bottom:0}",
+  '.ogt-mini-bg-blase.rechts{left:auto;right:0}',
+  '.ogt-mini-bg-blase.rechts::after{left:auto;right:32px}',
+  '.ogt-mini-bg-blase.neu{animation:ogtMiniBlase2 .25s ease}',
+  '@keyframes ogtMiniBlase2{from{opacity:0;transform:translateY(6px) scale(.92)}to{opacity:1;transform:none}}',
+  '.ogt-mini-bg.laeuft .ogt-mini-bg-tier{animation:ogtMiniLauf .3s ease-in-out infinite alternate}',
+  '@keyframes ogtMiniLauf{from{transform:translateY(0) rotate(-4deg)}to{transform:translateY(-5px) rotate(4deg)}}',
+  '.ogt-mini-bg.huepf .ogt-mini-bg-tier{animation:ogtMiniHopp .6s ease}',
+  '@keyframes ogtMiniHopp{0%{transform:none}35%{transform:translateY(-22px) scale(1.05)}70%{transform:translateY(0) scale(1.08,.92)}100%{transform:none}}',
+  '.ogt-mini-bg.moonwalk .ogt-mini-bg-tier{animation:ogtMiniMoon 1.6s ease-in-out}',
+  '@keyframes ogtMiniMoon{0%{transform:none}20%{transform:translateX(16px) skewX(-8deg)}40%{transform:translateX(32px) skewX(8deg)}60%{transform:translateX(46px) skewX(-8deg)}80%{transform:translateX(26px) rotate(8deg)}100%{transform:none}}',
+  '.ogt-mini-bg.tanz .ogt-mini-bg-tier{animation:ogtMiniTanz .4s ease-in-out 4 alternate}',
+  '@keyframes ogtMiniTanz{from{transform:rotate(-10deg) translateY(0)}to{transform:rotate(10deg) translateY(-10px)}}',
+  '.ogt-mini-finale{position:fixed;left:0;right:0;bottom:calc(70px + env(safe-area-inset-bottom,0px));height:150px;z-index:66;pointer-events:none;transition:opacity .5s}',
+  '.ogt-mini-finale.weg{opacity:0}',
+  '.ogt-mini-fin-a,.ogt-mini-fin-b{position:absolute;bottom:0;left:50%;width:130px;height:130px;transition:transform .9s cubic-bezier(.2,1.1,.4,1)}',
+  '.ogt-mini-fin-a{transform:translateX(-160vw)}',
+  '.ogt-mini-fin-b{transform:translateX(160vw)}',
+  '.ogt-mini-finale.da .ogt-mini-fin-a{transform:translateX(-100%)}',
+  '.ogt-mini-finale.da .ogt-mini-fin-b{transform:translateX(-30%)}',
+  '.ogt-mini-fin-a svg,.ogt-mini-fin-b svg{width:100%;height:100%;display:block;filter:drop-shadow(0 6px 12px rgba(0,0,0,.3))}',
+  '.ogt-mini-finale.patsch .ogt-mini-fin-a svg,.ogt-mini-finale.patsch .ogt-mini-fin-b svg{animation:ogtMiniHuepf .5s ease}',
+  '.ogt-mini-fin-text{position:absolute;left:50%;top:-34px;transform:translateX(-50%) scale(.6);opacity:0;background:#fff;color:#1b1b1b;font:800 19px/1.2 var(--font-body,system-ui,sans-serif);padding:7px 13px;border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.25);transition:opacity .2s,transform .3s cubic-bezier(.2,1.4,.4,1)}',
+  '.ogt-mini-finale.patsch .ogt-mini-fin-text{opacity:1;transform:translateX(-50%) scale(1)}',
   '.ogt-mini-karte .ogt-mini-zahl{font-family:var(--font-display);font-weight:800;font-size:34px;line-height:1.05;margin:0}',
   '.ogt-mini-karte .ogt-mini-zahl small{font-size:16px;font-weight:700;color:var(--ink-3)}',
   '.ogt-mini-weiter{margin:0}',
@@ -1397,7 +1707,7 @@ var CSS = [
   '.ogt-mini-pop{position:fixed;z-index:67;transform:translate(-50%,0);font:800 20px/1 var(--font-display,system-ui,sans-serif);color:#ff9f1c;text-shadow:0 2px 0 rgba(0,0,0,.25);pointer-events:none;animation:ogtMiniPop .95s ease-out forwards;white-space:nowrap}',
   '@keyframes ogtMiniPop{0%{opacity:0;transform:translate(-50%,0) scale(.6)}18%{opacity:1;transform:translate(-50%,-10px) scale(1.15)}100%{opacity:0;transform:translate(-50%,-58px) scale(1)}}',
   '.ogt-mini-hinweis{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:70;background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;max-width:calc(100% - 32px);text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.25);box-sizing:border-box}',
-  '@media (prefers-reduced-motion: reduce){.ogt-mini-pop,.ogt-mini-sprechblase{animation-duration:.01s}.ogt-mini-katzenfeier,.ogt-mini-ergebnis{transition:none}}'
+  '@media (prefers-reduced-motion: reduce){.ogt-mini-pop,.ogt-mini-sprechblase{animation-duration:.01s}.ogt-mini-katzenfeier,.ogt-mini-ergebnis,.ogt-mini-bg{transition:none}}'
 ].join('\n');
 
 // ===================== Start =====================
@@ -1411,11 +1721,13 @@ var CSS = [
   sichern();
   karteFuellen(st); tabFuellen(st);
   if (erstesMal) setTimeout(function(){
-    ergebnisKarte('<p class="ogt-mini-e-neu">Neu: ⭐ Punkte, Shop & Minispiele</p><p class="ogt-mini-e-klein">Für jede gespeicherte Einheit gibt’s Punkte – und für ein paar geheime Dinge auch. Im Reiter „Spiele“ holst du dir davon Spiele, Feiern und Sachen für deine Katze.</p>'
+    ergebnisKarte('<p class="ogt-mini-e-neu">Neu: ⭐ Punkte, Shop & Minispiele</p><p class="ogt-mini-e-klein">Für jede gespeicherte Einheit gibt’s Punkte – und für ein paar geheime Dinge auch. Im Reiter „Spiele“ holst du dir davon Spiele, Feiern, Tiere und Sachen für deinen Begleiter.</p>'
       + '<button type="button" class="ogt-mini-e-knopf" data-mini="zum-tab">Anschauen</button>', 9000);
   }, 900);
 })();
 // Für die automatischen Prüfungen (tests/tests_minigame.html): Blick auf Stand, Shop und Feiern von außen
 A.pruefen = { stand: stand, kaufen: kaufen, besitzt: besitzt, feiern: feiern, spielStarten: spielStarten, katzeSvg: katzeSvg,
-  effekt: function(id, W, H){ return EFFEKT[id] ? EFFEKT[id](W, H) : null; }, ST: function(){ return JSON.parse(JSON.stringify(ST)); } };
+  effekt: function(id, W, H){ return EFFEKT[id] ? EFFEKT[id](W, H) : null; }, ST: function(){ return JSON.parse(JSON.stringify(ST)); },
+  begleiter: function(){ return { da: !!BG.el, text: BG.blase && !BG.blase.hidden ? BG.blase.textContent : '', tier: meinTier() }; }, finale: begleiterFinale,
+  tiere: function(){ return Object.keys(TIERE); }, tierBild: function(o){ return katzeSvg(o); } };
 })();

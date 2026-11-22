@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version 2a3eb6938c
+/*! O.G. Trainings-App · Grundgerüst · Version cbb5c7f782
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -2724,7 +2724,7 @@ function setOk(x, i){
   s[nv] = on ? 1 : 0; e.x[x] = arr;
   if (!putEntry(e)) return;
   renderAll();
-  if (MINIGAME){ var mnach = miniPflichtFertig(e, mps.w, mps.s); if (mnach > mvor) miniEvent('uebung', { n: mnach - mvor }); }
+  if (MINIGAME){ var mnach = miniPflichtFertig(e, mps.w, mps.s); if (mnach > mvor) miniEvent('uebung', { n: mnach - mvor }); if (on) miniEvent('satz', { x: x }); }
 }
 function blockOk(gi){
   var sid = UI.sess; if (!sid || !canLog()) return;
@@ -2735,7 +2735,7 @@ function blockOk(gi){
   g.items.forEach(function(it){ if (it.ex.t !== 'tick' || it.opt) return; var arr = []; for (var i = 0; i < it.p.sets; i++) arr.push([allOn ? 0 : 1]); e.x[it.x] = arr; });
   if (putEntry(e)){
     renderAll();
-    if (MINIGAME){ var mnach = miniPflichtFertig(e, ps.w, ps.s); if (mnach > mvor) miniEvent('uebung', { n: mnach - mvor }); }
+    if (MINIGAME){ var mnach = miniPflichtFertig(e, ps.w, ps.s); if (mnach > mvor) miniEvent('uebung', { n: mnach - mvor }); if (!allOn) miniEvent('satz', { block: gi }); }
   }
 }
 function addSet(x){ var k = UI.sess + ':' + x; UI.extra[k] = (UI.extra[k] || 0) + 1; renderAll(); var el = document.getElementById('ex-' + x); if (el){ var ins = el.querySelectorAll('input[data-set]'); if (ins.length){ try { ins[ins.length - (EX[x].t === 'kg' ? 2 : 1)].focus({ preventScroll: true }); } catch (e) {} } } }
@@ -3036,6 +3036,16 @@ function miniEinheiten(){
   });
 }
 function miniSpiele(){ return allSpiele().map(function(x){ return { d: x.d }; }); }   // beantwortete Spiel-Fragen (Handball)
+// Für den Begleiter im Training (Runde 3): die gerade offene Einheit – Übungen mit Name, „Achte auf“-Hinweis aus dem Plan und Stand
+function miniSitzung(){
+  if (UI.tab !== 'plan' || !UI.sess || !SIDS[UI.sess]) return null;
+  var ps = parseSid(UI.sess), e = L()[UI.sess] || null;
+  return { sid: UI.sess, fertig: !!(e && e.f), uebungen: itemsOf(ps.w, ps.s).map(function(it){
+    var soll = (it.p && it.p.sets) || 1, dn = e ? doneSets(e, it.x).length : 0;
+    (ALT_FOR[it.x] || []).forEach(function(a){ dn = Math.max(dn, e ? doneSets(e, a).length : 0); });
+    return { x: it.x, n: (it.ex && it.ex.n) || it.x, cue: (it.ex && it.ex.cue) || '', opt: !!it.opt, fertig: dn >= soll, begonnen: dn > 0 };
+  }) };
+}
 function miniTab(){ return '<div id="ogt-mini-tab" class="stack" style="gap:14px"><p class="small muted">Die Spiele werden geladen …</p></div>'; }
 function miniWochen(){   // Wochen bis heute, in denen alle Pflicht-Einheiten fertig sind
   var cw = curWeek(), a = []; if (cw == null) return a;
@@ -3045,8 +3055,8 @@ function miniWochen(){   // Wochen bis heute, in denen alle Pflicht-Einheiten fe
 function miniStart(){
   if (!miniAn() || window.OGT_MINI) return;
   window.OGT_MINI = { cfg: MINIGAME, id: S.id, titel: TITLE, self: !!SELF, heute: todayISO, einheiten: miniEinheiten, wochen: miniWochen, toast: toast,
-    spiele: miniSpiele, hat: { hb: !!HB_FRAGE }, ther: therShort() || 'deinen Coach' };
-  var sc = document.createElement('script'); sc.src = 'spiele.js?v=2a3eb6938c'; sc.async = true;
+    spiele: miniSpiele, hat: { hb: !!HB_FRAGE }, ther: therShort() || 'deinen Coach', sitzung: miniSitzung };
+  var sc = document.createElement('script'); sc.src = 'spiele.js?v=cbb5c7f782'; sc.async = true;
   document.body.appendChild(sc);
 }
 
