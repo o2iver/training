@@ -1,8 +1,10 @@
-/*! O.G. Trainings-App · Minigames (Test, Aufgabe 65) · Version 32238b6404
+/*! O.G. Trainings-App · Minigames (Test, Aufgabe 65) · Version 77ff8e5fcd
  * Lädt nur, wenn ein Plan MINIGAME hat (miniStart in app_template.js) – die echten Pläne laden diese Datei nicht.
- * Punkte gibt es nur fürs Training: gespeicherte Einheit, Pflicht-Übungen mit mindestens einem Satz, Morgen-Check,
- * ganze Woche. Nie für mehr Gewicht, mehr Sätze, Optionales oder Extra-Training (Belastungsmanagement).
- * Punkte, Rekorde und Auswahl bleiben auf dem Gerät (ogt:mini:<kennung>) und gehen nicht mit der Rückmeldung raus.
+ * Punkte (⭐) gibt es nur fürs Training und fürs Eintragen: gespeicherte Einheit, Pflicht-Übungen mit mindestens einem
+ * Satz, Morgen-Check, ganze Woche – dazu geheime Boni fürs Monitoring (Kurz-Check, Handball, Spieltag, Notiz,
+ * Dranbleiben). Nie für mehr Gewicht, mehr Sätze, Optionales oder Extra-Training (Belastungsmanagement).
+ * Mit den Punkten kauft man im Shop: Minispiele, Feiern, Accessoires und Fellfarben für die Katze.
+ * Punkte, Käufe, Rekorde und Spielstände bleiben auf dem Gerät (ogt:mini:<kennung>) und gehen nicht mit der Rückmeldung raus.
  * Figuren, Spiele und Effekte sind eigene Entwürfe. Quelle: app/spiele.js (build.py setzt die Version). */
 (function(){
 'use strict';
@@ -10,7 +12,7 @@ var A = window.OGT_MINI;
 if (!A || A.geladen) return;
 A.geladen = true;
 
-var CFG = A.cfg || {}, TEST = !!CFG.test, KEY = 'ogt:mini:' + A.id;
+var CFG = A.cfg || {}, TEST = !!CFG.test, KEY = 'ogt:mini:' + A.id, THER = A.ther || 'deinen Coach';
 var RUHIG = false;
 try { RUHIG = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) {}
 var SCHRIFT = "'Barlow Condensed','Arial Narrow',system-ui,sans-serif";
@@ -22,8 +24,14 @@ function lesen(){
   catch (e) { return {}; }
 }
 var ST = lesen();
+if (ST.v !== 2){   // Umstieg vom ersten Test (Freischalten nach Punkten) auf den Shop: Testpunkte und Rekorde bleiben
+  ST = { v: 2, bonus: Math.max(0, +ST.bonus || 0), gekauft: {}, feier: 'konfetti', deko: { kopf: '', augen: '', hals: '' }, fell: 'orange',
+    rekord: ST.rekord && typeof ST.rekord === 'object' ? ST.rekord : {}, entdeckt: {}, letzte: null, hallo: 0 };
+}
+if (!ST.gekauft || typeof ST.gekauft !== 'object') ST.gekauft = {};
+if (!ST.deko || typeof ST.deko !== 'object') ST.deko = { kopf: '', augen: '', hals: '' };
 if (!ST.rekord || typeof ST.rekord !== 'object') ST.rekord = {};
-if (!Array.isArray(ST.gesehen)) ST.gesehen = null;   // null = erster Start auf diesem Gerät
+if (!ST.entdeckt || typeof ST.entdeckt !== 'object') ST.entdeckt = {};
 function sichern(){ try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) {} }
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 function zahl(n){ return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
@@ -34,146 +42,203 @@ function el(tag, cls, html){ var e = document.createElement(tag); if (cls) e.cla
 
 // ===================== Punkte =====================
 var REGEL = { einheit: 10, uebung: 2, morgen: 3, woche: 15 };
-function einheitPunkte(x){ return REGEL.einheit + REGEL.uebung * (x.erledigt || 0) + (x.morgen ? REGEL.morgen : 0); }
-function stand(){
-  var es = [], ws = [];
-  try { es = A.einheiten() || []; ws = A.wochen() || []; } catch (e) {}
-  var p = 0;
-  es.forEach(function(x){ p += einheitPunkte(x); });
-  p += ws.length * REGEL.woche;
-  if (TEST) p += Math.max(0, +ST.bonus || 0);
-  return { punkte: p, einheiten: es, wochen: ws };
-}
-
-// ===================== Was es freizuschalten gibt =====================
-var SPIELE = {
-  siebenmeter: { n: '7-Meter', icon: '🤾', einheit: 'Tore', start: siebenmeter,
-    text: 'Wirf am Torwart vorbei: Tipp ins Tor, wohin der Ball fliegen soll. 10 Würfe.' },
-  parade: { n: 'Parade', icon: '🥅', einheit: 'Paraden', start: parade,
-    text: 'Tipp die Bälle an, bevor sie im Tor sind. Nach 3 Gegentoren ist Schluss.' },
-  katze: { n: 'High Five', icon: '🐾', einheit: 'High Fives', start: highfive,
-    text: 'Klatsch die Pixelkatze ab: Tipp auf die Seite, auf der sie die Pfote hebt – aber nur dann.' }
-};
-var SPIEL_AB = [10, 60, 150];   // erstes Spiel nach der ersten gespeicherten Einheit, dann nach und nach
-var FEIERN = [
-  { id: 'konfetti', n: 'Konfetti', icon: '🎊', ab: 0 },
-  { id: 'feuerwerk', n: 'Feuerwerk', icon: '🎆', ab: 50 },
-  { id: 'zufall', n: 'Zufall', icon: '🎲', ab: 50 },
-  { id: 'katze', n: 'Pixelkatze High Five', icon: 'katze', ab: 120 },
-  { id: 'baelle', n: 'Handball-Regen', icon: 'ball', ab: 250 },
-  { id: 'pokal', n: 'Goldener Pokal', icon: '🏆', ab: 400 }
+// Geheime Boni fürs Monitoring (Olli 22.11.2026): erst sichtbar, wenn man sie zum ersten Mal bekommt
+var BONI = [
+  { id: 'sa', n: 'Schlaf & Co.', text: 'Kurz-Check vor dem Training komplett (Schlaf, Muskelkater, Stress)', p: 3, je: 'pro Einheit' },
+  { id: 'hb', n: 'Handball gemeldet', text: 'Handball-Frage beim Speichern beantwortet – auch „Nein“ zählt', p: 2, je: 'pro Einheit', nur: 'hb' },
+  { id: 'hbe', n: 'Anstrengung nachgetragen', text: 'eingetragen, wie anstrengend Handball war', p: 2, je: 'pro Einheit', nur: 'hb' },
+  { id: 'spiel', n: 'Spieltag gemeldet', text: 'Frage nach dem Spiel beantwortet – auch „nicht gespielt“ zählt', p: 3, je: 'pro Spiel', nur: 'hb' },
+  { id: 'notiz', n: 'Notiz an ' + THER, text: 'beim Speichern ein paar Worte notiert', p: 2, je: 'pro Einheit' },
+  { id: 'dran', n: 'Dranbleiber', text: 'Woche geschafft und mindestens zwei Morgen-Checks in der Woche', p: 10, je: 'pro Woche' }
 ];
-var KATZE_AB = 120;
-var DEKO = [
-  { id: 'stirnband', n: 'Stirnband', ab: 200 },
-  { id: 'brille', n: 'Sonnenbrille', ab: 350 },
-  { id: 'krone', n: 'Krone', ab: 600 }
-];
-function spielListe(){ return (Array.isArray(CFG.spiele) ? CFG.spiele : []).filter(function(id){ return SPIELE[id]; }); }
-function spielAb(id){ var i = spielListe().indexOf(id); return SPIEL_AB[Math.min(Math.max(i, 0), SPIEL_AB.length - 1)]; }
-function alleDinge(){
-  var a = [];
-  spielListe().forEach(function(id){ a.push({ id: 'spiel:' + id, n: 'Spiel „' + SPIELE[id].n + '“', ab: spielAb(id) }); });
-  FEIERN.forEach(function(f){ if (f.ab > 0 && f.id !== 'zufall') a.push({ id: 'feier:' + f.id, n: f.n, ab: f.ab }); });
-  DEKO.forEach(function(d){ a.push({ id: 'deko:' + d.id, n: d.n + ' für die Katze', ab: d.ab }); });
-  return a;
+function boniAktiv(){ var hat = A.hat || {}; return BONI.filter(function(b){ return !b.nur || hat[b.nur]; }); }
+function verdienst(){
+  var es = [], ws = [], sp = [];
+  try { es = A.einheiten() || []; ws = A.wochen() || []; sp = A.spiele ? (A.spiele() || []) : []; } catch (e) {}
+  var t = { einheit: 0, uebung: 0, morgen: 0, woche: 0, sa: 0, hb: 0, hbe: 0, spiel: 0, notiz: 0, dran: 0 };
+  es.forEach(function(x){
+    t.einheit += REGEL.einheit; t.uebung += REGEL.uebung * (x.erledigt || 0);
+    if (x.morgen) t.morgen += REGEL.morgen;
+    if (x.sa) t.sa += 3;
+    if (x.hbw) t.hb += 2;
+    if (x.hbe) t.hbe += 2;
+    if (x.notiz) t.notiz += 2;
+  });
+  t.woche = ws.length * REGEL.woche;
+  t.spiel = sp.length * 3;
+  ws.forEach(function(w){ if (es.filter(function(x){ return x.w === w && x.morgen; }).length >= 2) t.dran += 10; });
+  var summe = 0; Object.keys(t).forEach(function(k){ summe += t[k]; });
+  if (TEST) summe += Math.max(0, +ST.bonus || 0);
+  return { summe: summe, teile: t, einheiten: es };
 }
-function naechstes(p){ var n = null; alleDinge().forEach(function(d){ if (d.ab > p && (!n || d.ab < n.ab)) n = d; }); return n; }
-function vorige(p){ var v = 0; alleDinge().forEach(function(d){ if (d.ab <= p && d.ab > v) v = d.ab; }); return v; }
-// Was seit dem letzten Mal neu freigeschaltet ist (wird dabei als gesehen gemerkt)
-function neuFrei(p){
-  var an = alleDinge().filter(function(d){ return p >= d.ab; });
-  if (ST.gesehen === null){ ST.gesehen = an.map(function(d){ return d.id; }); return []; }
-  var neu = an.filter(function(d){ return ST.gesehen.indexOf(d.id) < 0; });
-  if (neu.length) ST.gesehen = ST.gesehen.concat(neu.map(function(d){ return d.id; }));
+function ausgegeben(){ var s = 0; Object.keys(ST.gekauft).forEach(function(k){ s += Math.max(0, +ST.gekauft[k] || 0); }); return s; }
+function stand(){ var v = verdienst(), a = ausgegeben(); return { verdient: v.summe, ausgegeben: a, konto: Math.max(0, v.summe - a), teile: v.teile, einheiten: v.einheiten }; }
+function neueBoni(teile){
+  var neu = [];
+  boniAktiv().forEach(function(b){ if (teile[b.id] > 0 && !ST.entdeckt[b.id]){ ST.entdeckt[b.id] = 1; neu.push(b); } });
   return neu;
 }
-function aktiveFeier(p){
-  var id = ST.feier || 'konfetti', f = FEIERN.filter(function(x){ return x.id === id; })[0];
-  return f && p >= f.ab ? id : 'konfetti';
+
+// ===================== Shop: was es zu kaufen gibt =====================
+var SPIELE = {
+  siebenmeter: { n: '7-Meter', icon: '🤾', preis: 20, einheit: 'Tore', start: siebenmeter,
+    text: 'Wirf am Torwart vorbei: Tipp ins Tor, wohin der Ball fliegen soll. 10 Würfe.' },
+  parade: { n: 'Parade', icon: '🥅', preis: 20, einheit: 'Paraden', start: parade,
+    text: 'Tipp die Bälle an, bevor sie im Tor sind. Nach 3 Gegentoren ist Schluss.' },
+  katze: { n: 'High Five', icon: '🐾', preis: 30, einheit: 'High Fives', start: highfive,
+    text: 'Klatsch die Katze ab: Tipp auf die Seite, auf der sie die Pfote hebt – aber nur dann.' },
+  sprint: { n: 'Katzen-Sprint', icon: '🏃', preis: 40, einheit: 'm', start: sprint,
+    text: 'Tipp zum Springen – über Hütchen und Hürden, Sterne einsammeln. Wie weit kommst du?' },
+  muckibude: { n: 'Muckibude', icon: '🏋️', preis: 50, einheit: '', eigen: true,
+    text: 'Jeder Tipp ist eine Wiederholung. Sammle Kraft, kauf bessere Hanteln und einen Trainingspartner – dein Fortschritt bleibt.' }
+};
+var FEIERN = [
+  { id: 'konfetti', n: 'Konfetti', icon: '🎊', preis: 0 },
+  { id: 'zufall', n: 'Zufall', icon: '🎲', preis: 25 },
+  { id: 'herzen', n: 'Herzchen', icon: '💖', preis: 30 },
+  { id: 'feuerwerk', n: 'Feuerwerk', icon: '🎆', preis: 40 },
+  { id: 'sterne', n: 'Sternschnuppen', icon: '🌠', preis: 50 },
+  { id: 'katze', n: 'Katze: „Let’s Miau!“', icon: 'katze', preis: 60 },
+  { id: 'baelle', n: 'Handball-Regen', icon: 'ball', preis: 80 },
+  { id: 'regenbogen', n: 'Regenbogen', icon: '🌈', preis: 90 },
+  { id: 'parade', n: 'Katzen-Parade', icon: 'katzen', preis: 100 },
+  { id: 'pokal', n: 'Goldener Pokal', icon: '🏆', preis: 120 }
+];
+var DEKO = [
+  { id: 'stirnband', n: 'Stirnband', platz: 'kopf', preis: 40 },
+  { id: 'fliege', n: 'Fliege', platz: 'hals', preis: 40 },
+  { id: 'brille', n: 'Sonnenbrille', platz: 'augen', preis: 60 },
+  { id: 'partyhut', n: 'Partyhut', platz: 'kopf', preis: 70 },
+  { id: 'herzbrille', n: 'Herzbrille', platz: 'augen', preis: 80 },
+  { id: 'medaille', n: 'Goldmedaille', platz: 'hals', preis: 100 },
+  { id: 'krone', n: 'Krone', platz: 'kopf', preis: 150 }
+];
+var PLATZ = { kopf: 'Kopf', augen: 'Augen', hals: 'Hals' };
+var FELL = {
+  orange: { n: 'Orange', preis: 0, fell: '#f7a541', streifen: '#e07b28', creme: '#fff4e4', linie: '#3b2618' },
+  grau: { n: 'Grau getigert', preis: 40, fell: '#a9b1bb', streifen: '#7b8591', creme: '#f5f7fa', linie: '#2c3138' },
+  schoko: { n: 'Schoko', preis: 50, fell: '#9a6544', streifen: '#71472e', creme: '#f6e6d6', linie: '#2a1a10' },
+  weiss: { n: 'Schneeweiß', preis: 60, fell: '#fbfbff', streifen: '#e2e2ee', creme: '#ffffff', linie: '#4a4a5c' },
+  schwarz: { n: 'Nachtschwarz', preis: 60, fell: '#3d3d49', streifen: '#2b2b35', creme: '#e9e9f3', linie: '#141419' },
+  gold: { n: 'Gold', preis: 150, fell: '#ffd24d', streifen: '#f0a800', creme: '#fff7d6', linie: '#6b4a00' }
+};
+function spielListe(){ return (Array.isArray(CFG.spiele) ? CFG.spiele : []).filter(function(id){ return SPIELE[id]; }); }
+// Kennung im Shop: spiel:<id>, feier:<id>, deko:<id>, fell:<id>
+function ding(kennung){
+  var t = String(kennung).split(':'), art = t[0], id = t[1], x;
+  if (art === 'spiel' && SPIELE[id] && spielListe().indexOf(id) >= 0) return { art: art, id: id, n: SPIELE[id].n, preis: SPIELE[id].preis };
+  if (art === 'feier'){ x = FEIERN.filter(function(f){ return f.id === id; })[0]; if (x) return { art: art, id: id, n: x.n, preis: x.preis }; }
+  if (art === 'deko'){ x = DEKO.filter(function(f){ return f.id === id; })[0]; if (x) return { art: art, id: id, n: x.n, preis: x.preis, platz: x.platz }; }
+  if (art === 'fell' && FELL[id]) return { art: art, id: id, n: FELL[id].n, preis: FELL[id].preis };
+  return null;
 }
-function aktiveDeko(p){
-  var d = DEKO.filter(function(x){ return x.id === ST.deko; })[0];
-  return d && p >= d.ab ? d.id : '';
+function besitzt(kennung){ var d = ding(kennung); return !!d && (d.preis === 0 || ST.gekauft[kennung] != null); }
+function kaufen(kennung){
+  var d = ding(kennung); if (!d || besitzt(kennung)) return false;
+  if (stand().konto < d.preis) return false;
+  ST.gekauft[kennung] = d.preis;
+  if (d.art === 'feier') ST.feier = d.id;
+  if (d.art === 'deko') ST.deko[d.platz] = d.id;
+  if (d.art === 'fell') ST.fell = d.id;
+  sichern();
+  return true;
+}
+function aktiveFeier(){ return besitzt('feier:' + ST.feier) ? ST.feier : 'konfetti'; }
+function meineDeko(){ var o = {}; Object.keys(PLATZ).forEach(function(p){ var id = ST.deko[p]; o[p] = id && besitzt('deko:' + id) ? id : ''; }); return o; }
+function meinFell(){ return besitzt('fell:' + ST.fell) ? ST.fell : 'orange'; }
+function meineKatze(extra){ var o = { deko: meineDeko(), fell: meinFell() }; Object.keys(extra || {}).forEach(function(k){ o[k] = extra[k]; }); return o; }
+// günstigstes Ding, das man noch nicht hat (für „Als Nächstes“)
+function naechstesZiel(){
+  var alle = [];
+  spielListe().forEach(function(id){ alle.push('spiel:' + id); });
+  FEIERN.forEach(function(f){ alle.push('feier:' + f.id); });
+  DEKO.forEach(function(d){ alle.push('deko:' + d.id); });
+  Object.keys(FELL).forEach(function(f){ alle.push('fell:' + f); });
+  var offen = alle.filter(function(k){ return !besitzt(k); }).map(ding).filter(Boolean).sort(function(a, b){ return a.preis - b.preis; });
+  return offen[0] || null;
 }
 
-// ===================== Pixelkatze (eigener Entwurf, 20 × 20 Pixel) =====================
-var KATZE16 = [
-  '..k' + reihe('.', 10) + 'k..',
-  '..kk' + reihe('.', 8) + 'kk..',
-  '..kpk' + reihe('.', 6) + 'kpk..',
-  '..kpp' + reihe('k', 6) + 'ppk..',
-  '.k' + reihe('o', 12) + 'k.',
-  '.koowe' + reihe('o', 4) + 'weook.',
-  '.kooee' + reihe('o', 4) + 'eeook.',
-  '.kowwwwppwwwwok.',
-  '.koowwkwwkwwook.',
-  '..koo' + reihe('w', 6) + 'ook..',
-  '..kooo' + reihe('w', 4) + 'oook..',
-  '.kooo' + reihe('w', 6) + 'oook.',
-  '.koosowwwwosook.',
-  '.kooooowwoooook.',
-  '.kowwwkookwwwok.',
-  '..' + reihe('k', 12) + '..'
-];
-var KATZE = [reihe('.', 20), reihe('.', 20), reihe('.', 20)].concat(KATZE16.map(function(r){ return '..' + r + '..'; }), [reihe('.', 20)]);
-// erhobene Pfote (links im Bild; rechts gespiegelt)
-var ARM = [[1, 4, 'k'], [2, 4, 'k'], [0, 5, 'k'], [1, 5, 'w'], [2, 5, 'w'], [3, 5, 'k'], [0, 6, 'k'], [1, 6, 'p'], [2, 6, 'p'], [3, 6, 'k'],
-  [0, 7, 'k'], [1, 7, 'w'], [2, 7, 'w'], [3, 7, 'k'], [0, 8, 'k'], [1, 8, 'o'], [2, 8, 'o'], [3, 8, 'k'], [0, 9, 'k'], [1, 9, 'o'], [2, 9, 'o'], [3, 9, 'k'],
-  [0, 10, 'k'], [1, 10, 'o'], [2, 10, 'o'], [3, 10, 'k'], [0, 11, 'k'], [1, 11, 'o'], [2, 11, 'o'], [3, 11, 'k'], [0, 12, 'k'], [1, 12, 'o'], [2, 12, 'o'], [3, 12, 'o'],
-  [1, 13, 'k'], [2, 13, 'o'], [3, 13, 'o'], [4, 13, 'o'], [2, 14, 'k'], [3, 14, 'o'], [5, 17, 'o'], [6, 17, 'o'], [7, 17, 'o']];
-var DEKO_PIX = {
-  stirnband: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map(function(x){ return [x, 7, x === 9 || x === 10 ? 'h' : 'r']; }),
-  brille: [[5, 8, 'b'], [6, 8, 'g'], [7, 8, 'b'], [8, 8, 'b'], [9, 8, 'b'], [10, 8, 'b'], [11, 8, 'b'], [12, 8, 'g'], [13, 8, 'b'], [14, 8, 'b'],
-    [5, 9, 'b'], [6, 9, 'b'], [7, 9, 'b'], [8, 9, 'b'], [11, 9, 'b'], [12, 9, 'b'], [13, 9, 'b'], [14, 9, 'b']],
-  krone: [[7, 2, 'y'], [9, 2, 'y'], [10, 2, 'y'], [12, 2, 'y'], [7, 3, 'y'], [8, 3, 'y'], [9, 3, 'y'], [10, 3, 'y'], [11, 3, 'y'], [12, 3, 'y'],
-    [7, 4, 'y'], [8, 4, 'r'], [9, 4, 'y'], [10, 4, 'y'], [11, 4, 'r'], [12, 4, 'y'], [7, 5, 'd'], [8, 5, 'd'], [9, 5, 'd'], [10, 5, 'd'], [11, 5, 'd'], [12, 5, 'd']]
-};
-var FARBE = { k: '#2b1d14', o: '#f39a32', s: '#cf6f1d', w: '#fff4e3', p: '#f7a8c2', e: '#1f1a17', r: '#e53935', h: '#ffffff',
-  b: '#161616', g: '#9fb1c4', y: '#ffcd2e', d: '#c58f0c' };
-// opt: { arm: -1 | 0 | 1, gesicht: '' | 'froh' | 'grummel', deko: '' | 'stirnband' | 'brille' | 'krone' }
-function katzeGitter(opt){
-  opt = opt || {};
-  var g = KATZE.map(function(r){ return r.split(''); });
-  function setz(x, y, c){ if (y >= 0 && y < 20 && x >= 0 && x < 20) g[y][x] = c; }
-  if (opt.arm) ARM.forEach(function(p){ setz(opt.arm < 0 ? p[0] : 19 - p[0], p[1], p[2]); });
-  if (opt.gesicht === 'froh') [6, 7, 12, 13].forEach(function(x){ setz(x, 8, 'o'); setz(x, 9, 'k'); });
-  else if (opt.gesicht === 'grummel') [6, 7, 12, 13].forEach(function(x){ setz(x, 8, 'k'); });
-  (DEKO_PIX[opt.deko] || []).forEach(function(p){ setz(p[0], p[1], p[2]); });
-  return g;
-}
+// ===================== Die Katze (gezeichnet, eigener Entwurf, 120 × 120) =====================
 function katzeSvg(opt){
-  var g = katzeGitter(opt), out = '';
-  for (var y = 0; y < 20; y++){
-    var x = 0;
-    while (x < 20){
-      var c = g[y][x];
-      if (c === '.' || !FARBE[c]){ x++; continue; }
-      var x2 = x; while (x2 < 20 && g[y][x2] === c) x2++;
-      out += '<rect x="' + x + '" y="' + y + '" width="' + (x2 - x) + '" height="1" fill="' + FARBE[c] + '"/>';
-      x = x2;
-    }
+  opt = opt || {};
+  var F = FELL[opt.fell] || FELL.orange, L = F.linie, arm = opt.arm || 0, g = opt.gesicht || '', d = opt.deko || {};
+  var h = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"' + (opt.gross ? ' width="512" height="512"' : '') + ' aria-hidden="true" focusable="false">';
+  h += '<ellipse cx="60" cy="113" rx="30" ry="4.5" fill="rgba(0,0,0,.16)"/>';
+  h += '<path d="M79 101 C100 103 106 86 97 75" fill="none" stroke="' + L + '" stroke-width="13" stroke-linecap="round"/>';
+  h += '<path d="M79 101 C100 103 106 86 97 75" fill="none" stroke="' + F.fell + '" stroke-width="8" stroke-linecap="round"/>';
+  h += '<path d="M99 81 C101 78 100 76 98 75" fill="none" stroke="' + F.streifen + '" stroke-width="4" stroke-linecap="round"/>';
+  h += '<ellipse cx="60" cy="92" rx="23" ry="18" fill="' + F.fell + '" stroke="' + L + '" stroke-width="3"/>';
+  h += '<ellipse cx="60" cy="96" rx="12.5" ry="11.5" fill="' + F.creme + '"/>';
+  function pfoteUnten(x){
+    return '<ellipse cx="' + x + '" cy="106" rx="8" ry="5.8" fill="' + F.creme + '" stroke="' + L + '" stroke-width="2.6"/>'
+      + '<path d="M' + (x - 2.4) + ' 103.5v4M' + (x + 2.4) + ' 103.5v4" stroke="' + L + '" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>';
   }
-  return '<svg viewBox="0 0 20 20" shape-rendering="crispEdges" aria-hidden="true" focusable="false">' + out + '</svg>';
+  if (arm !== -1) h += pfoteUnten(49);
+  if (arm !== 1) h += pfoteUnten(71);
+  function ohr(links){
+    function X(x){ return links ? x : 120 - x; }
+    return '<path d="M' + X(29) + ' 42 L' + X(25) + ' 14 Q' + X(26) + ' 9 ' + X(31) + ' 11 L' + X(54) + ' 28 Z" fill="' + F.fell + '" stroke="' + L + '" stroke-width="3" stroke-linejoin="round"/>'
+      + '<path d="M' + X(32) + ' 36 L' + X(30) + ' 18 L' + X(47) + ' 29 Z" fill="#ffadc4"/>';
+  }
+  h += ohr(true) + ohr(false);
+  h += '<ellipse cx="60" cy="56" rx="37" ry="31" fill="' + F.fell + '" stroke="' + L + '" stroke-width="3"/>';
+  h += '<path d="M53 29.5v7M60 27.5v8.5M67 29.5v7" stroke="' + F.streifen + '" stroke-width="3.6" stroke-linecap="round"/>';
+  h += '<ellipse cx="32" cy="66" rx="6.5" ry="3.8" fill="#ff8fb0" opacity=".55"/><ellipse cx="88" cy="66" rx="6.5" ry="3.8" fill="#ff8fb0" opacity=".55"/>';
+  h += '<ellipse cx="60" cy="67.5" rx="13.5" ry="9" fill="' + F.creme + '"/>';
+  h += '<path d="M29 63 L16 60M29 67.5 L15 68.5M91 63 L104 60M91 67.5 L105 68.5" stroke="' + L + '" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>';
+  if (g === 'froh') h += '<path d="M37 58 Q45 49 53 58M67 58 Q75 49 83 58" fill="none" stroke="' + L + '" stroke-width="3.4" stroke-linecap="round"/>';
+  else {
+    var ry = g === 'grummel' ? 5.2 : 8.8, gy = g === 'grummel' ? 55 : 52.6;
+    h += '<ellipse cx="45" cy="56.5" rx="7.2" ry="' + ry + '" fill="#2a1f22"/><ellipse cx="75" cy="56.5" rx="7.2" ry="' + ry + '" fill="#2a1f22"/>';
+    h += '<circle cx="42.4" cy="' + gy + '" r="3" fill="#fff"/><circle cx="72.4" cy="' + gy + '" r="3" fill="#fff"/>';
+    h += '<circle cx="47.6" cy="60.8" r="1.4" fill="#fff"/><circle cx="77.6" cy="60.8" r="1.4" fill="#fff"/>';
+    if (g === 'grummel') h += '<path d="M37 51 L53 53.5M83 51 L67 53.5" stroke="' + L + '" stroke-width="3.2" stroke-linecap="round"/>';
+  }
+  h += '<path d="M56.6 63.2 Q60 61 63.4 63.2 Q61.2 66.8 60 66.8 Q58.8 66.8 56.6 63.2 Z" fill="#ff7fa0"/>';
+  h += g === 'grummel' ? '<path d="M54.5 71.5 Q60 67.5 65.5 71.5" fill="none" stroke="' + L + '" stroke-width="2.2" stroke-linecap="round"/>'
+    : '<path d="M53.6 68.2 Q56.8 72.6 60 68.6 Q63.2 72.6 66.4 68.2" fill="none" stroke="' + L + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>';
+  if (d.hals === 'fliege') h += '<path d="M60 84 L46 77 L46 91 Z M60 84 L74 77 L74 91 Z" fill="#e53935" stroke="' + L + '" stroke-width="2" stroke-linejoin="round"/><circle cx="60" cy="84" r="4" fill="#b71c1c" stroke="' + L + '" stroke-width="1.6"/>';
+  if (d.hals === 'medaille') h += '<path d="M50 80 L60 94 L70 80" fill="none" stroke="#1e63d6" stroke-width="4.5" stroke-linejoin="round"/><circle cx="60" cy="97" r="7.5" fill="#ffcd2e" stroke="#a87400" stroke-width="2"/><path d="M60 92.6 l1.5 3 3.3.4-2.4 2.3.6 3.3-3-1.6-3 1.6.6-3.3-2.4-2.3 3.3-.4z" fill="#fff3b0"/>';
+  if (arm){   // erhobene Pfote mit Zehenbohnen
+    var s = arm < 0;
+    var X = function(x){ return s ? x : 120 - x; };
+    h += '<path d="M' + X(42) + ' 88 Q' + X(28) + ' 82 ' + X(22) + ' 66" fill="none" stroke="' + L + '" stroke-width="15" stroke-linecap="round"/>';
+    h += '<path d="M' + X(42) + ' 88 Q' + X(28) + ' 82 ' + X(22) + ' 66" fill="none" stroke="' + F.fell + '" stroke-width="10" stroke-linecap="round"/>';
+    h += '<circle cx="' + X(20) + '" cy="57" r="11" fill="' + F.creme + '" stroke="' + L + '" stroke-width="2.8"/>';
+    h += '<ellipse cx="' + X(20) + '" cy="60.5" rx="5.4" ry="4.4" fill="#ff9ebb"/>';
+    h += '<circle cx="' + X(13.5) + '" cy="52.5" r="2.5" fill="#ff9ebb"/><circle cx="' + X(20) + '" cy="49.6" r="2.6" fill="#ff9ebb"/><circle cx="' + X(26.5) + '" cy="52.5" r="2.5" fill="#ff9ebb"/>';
+  }
+  if (d.augen === 'brille') h += '<rect x="34.5" y="48.5" width="21.5" height="15" rx="5.5" fill="#161616"/><rect x="64" y="48.5" width="21.5" height="15" rx="5.5" fill="#161616"/><path d="M56 54 Q60 51.5 64 54" fill="none" stroke="#161616" stroke-width="3"/><path d="M38.5 52.5 l5 -2.6M68 52.5 l5 -2.6" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/>';
+  if (d.augen === 'herzbrille'){
+    var herz = function(cx){ return '<path d="M' + cx + ' 63.5 C' + (cx - 13) + ' 55 ' + (cx - 9) + ' 45.5 ' + cx + ' 51.5 C' + (cx + 9) + ' 45.5 ' + (cx + 13) + ' 55 ' + cx + ' 63.5 Z" fill="#ff4f86" stroke="#b0164a" stroke-width="1.8"/>'; };
+    h += herz(45) + herz(75) + '<path d="M54 54 Q60 51.5 66 54" fill="none" stroke="#b0164a" stroke-width="2.6"/>';
+  }
+  if (d.kopf === 'stirnband') h += '<path d="M26 44 Q60 31 94 44 L93.5 51 Q60 38.5 26.5 51 Z" fill="#e53935" stroke="' + L + '" stroke-width="2"/><path d="M27 47.5 Q60 35 93 47.5" fill="none" stroke="#fff" stroke-width="2"/>';
+  if (d.kopf === 'krone') h += '<path d="M42 30 L44 12 L52 22 L60 7 L68 22 L76 12 L78 30 Z" fill="#ffcd2e" stroke="#a87400" stroke-width="2.4" stroke-linejoin="round"/><circle cx="60" cy="21" r="2.8" fill="#e53935"/><circle cx="49" cy="25" r="2.2" fill="#1e88e5"/><circle cx="71" cy="25" r="2.2" fill="#1e88e5"/>';
+  if (d.kopf === 'partyhut') h += '<g transform="rotate(14 60 30)"><path d="M60 2 L74 31 L46 31 Z" fill="#7c4dff" stroke="' + L + '" stroke-width="2.2" stroke-linejoin="round"/><path d="M53.2 17 L66.8 17 M49.8 24 L70.2 24" stroke="#ffd54f" stroke-width="3.2"/><circle cx="60" cy="3" r="4.5" fill="#ff5c8a" stroke="' + L + '" stroke-width="1.8"/></g>';
+  return h + '</svg>';
 }
+// Für die Leinwand der Spiele: dieselbe Zeichnung als Bild (einmal je Aussehen, danach aus dem Zwischenspeicher)
 var KATZE_BILD = {};
 function katzeBild(opt){
-  var k = (opt.arm || 0) + '|' + (opt.gesicht || '') + '|' + (opt.deko || '');
+  var k = JSON.stringify(opt || {});
   if (KATZE_BILD[k]) return KATZE_BILD[k];
-  var c = document.createElement('canvas'); c.width = 20; c.height = 20;
-  var x = c.getContext('2d'), g = katzeGitter(opt);
-  for (var yy = 0; yy < 20; yy++) for (var xx = 0; xx < 20; xx++){ var ch = g[yy][xx]; if (FARBE[ch]){ x.fillStyle = FARBE[ch]; x.fillRect(xx, yy, 1, 1); } }
-  return (KATZE_BILD[k] = c);
+  var im = new Image(); im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(katzeSvg(meineKatzeGross(opt)));
+  return (KATZE_BILD[k] = im);
 }
+function meineKatzeGross(opt){ var o = {}; Object.keys(opt || {}).forEach(function(k){ o[k] = opt[k]; }); o.gross = true; return o; }
 function katzeMalen(ctx, opt, cx, cy, groesse){
-  ctx.save(); ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(katzeBild(opt), Math.round(cx - groesse / 2), Math.round(cy - groesse / 2), Math.round(groesse), Math.round(groesse));
-  ctx.restore();
+  var im = katzeBild(opt);
+  if (im.complete && im.naturalWidth) ctx.drawImage(im, cx - groesse / 2, cy - groesse / 2, groesse, groesse);
 }
 function ballSvg(){
   return '<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><circle cx="24" cy="24" r="21" fill="#ffd23f" stroke="#1f2937" stroke-width="2"/>'
     + '<path d="M24 3v42M7 13c8 6 8 16 0 22M41 13c-8 6-8 16 0 22" fill="none" stroke="#1d4ed8" stroke-width="3"/></svg>';
 }
+function katzenSvg(){   // Bild für „Katzen-Parade“: zwei Katzen
+  return '<span class="ogt-mini-zwei">' + katzeSvg({ fell: 'grau', gesicht: 'froh' }) + katzeSvg({ fell: 'orange', arm: 1 }) + '</span>';
+}
+
 
 // ===================== Malhilfen =====================
 function linie(ctx, x1, y1, x2, y2){ ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
@@ -423,12 +488,14 @@ function parade(g){
   };
 }
 
-// ===================== Spiel 3: High Five mit der Pixelkatze =====================
+
+// ===================== Spiel 3: High Five mit der Katze =====================
 function highfive(g){
   var S;
-  function geo(){ var gr = Math.max(120, Math.floor(Math.min(g.W * 0.9, g.H * 0.66) / 20) * 20); return { gr: gr, cx: g.W / 2, cy: g.H * 0.55 }; }
+  function geo(){ var gr = Math.max(140, Math.min(g.W * 0.92, g.H * 0.68)); return { gr: gr, cx: g.W / 2, cy: g.H * 0.56 }; }
   function anzeige(){ g.hud('High Fives ' + S.punkte + ' · ' + reihe('❤', S.leben) + reihe('♡', 3 - S.leben)); }
-  function pfote(G, seite){ var px = G.gr / 20; return { x: G.cx + (seite < 0 ? -1 : 1) * 8.5 * px, y: G.cy - G.gr / 2 + 5.5 * px }; }
+  function pfote(G, seite){ return { x: G.cx + (seite < 0 ? -1 : 1) * G.gr * (40 / 120), y: G.cy + G.gr * (57 / 120 - 0.5) }; }
+  function bild(arm, gesicht){ return { deko: S.basis.deko, fell: S.basis.fell, arm: arm, gesicht: gesicht }; }
   function fehler(text){
     S.leben--; S.gesicht = 'grummel'; S.gesichtT = 0.75;
     S.effekte.push({ t: 0, text: text, farbe: '#fca5a5', x: g.W / 2, y: g.H * 0.17 });
@@ -439,7 +506,8 @@ function highfive(g){
     zustand: function(){ return { punkte: S.punkte, leben: S.leben, phase: S.ende > 0 ? 'ende' : S.phase, seite: S.seite }; },
     reset: function(){
       S = { punkte: 0, leben: 3, phase: 'warten', t: 0, dauer: zufall(0.7, 1.2), seite: 0, fenster: 1.05, gesicht: '', gesichtT: 0,
-        effekte: [], funken: [], fertig: false, ende: 0, deko: aktiveDeko(stand().punkte) };
+        effekte: [], funken: [], fertig: false, ende: 0, basis: meineKatze() };
+      [0, -1, 1].forEach(function(a){ ['', 'froh', 'grummel'].forEach(function(f){ katzeBild(bild(a, f)); }); });   // vorladen
       anzeige();
     },
     tipp: function(x){
@@ -448,7 +516,7 @@ function highfive(g){
       if (S.phase === 'pfote' && seite === S.seite){
         var P = pfote(geo(), seite);
         S.punkte++; S.gesicht = 'froh'; S.gesichtT = 0.45; S.fenster = Math.max(0.42, S.fenster * 0.955);
-        S.effekte.push({ t: 0, text: 'Patsch!', farbe: '#86efac', x: P.x, y: P.y - 34 });
+        S.effekte.push({ t: 0, text: 'Patsch!', farbe: '#86efac', x: P.x, y: P.y - 40 });
         for (var i = 0; i < 14; i++){ var w = zufall(0, TAU), v = zufall(60, 200); S.funken.push({ x: P.x, y: P.y, vx: Math.cos(w) * v, vy: Math.sin(w) * v, t: 0 }); }
         S.phase = 'warten'; S.t = 0; S.dauer = zufall(0.3, 0.95) * Math.max(0.5, 1 - S.punkte * 0.02);
         anzeige();
@@ -480,9 +548,8 @@ function highfive(g){
       ctx.fillStyle = 'rgba(255,255,255,.035)'; ctx.fillRect(0, 0, W / 2, H);
       if (oben){ ctx.fillStyle = 'rgba(134,239,172,.10)'; ctx.fillRect(S.seite < 0 ? 0 : W / 2, 0, W / 2, H); }
       ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1; linie(ctx, W / 2, 0, W / 2, H);
-      ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(G.cx, G.cy + G.gr * 0.43, G.gr * 0.36, G.gr * 0.06, 0, 0, TAU); ctx.fill();
-      katzeMalen(ctx, { arm: oben ? S.seite : 0, gesicht: S.gesicht, deko: S.deko }, G.cx, G.cy, G.gr);
-      if (oben){ var P = pfote(G, S.seite); textMalen(ctx, 'High Five!', P.x + (S.seite < 0 ? 34 : -34), P.y - G.gr * 0.16, Math.min(24, W * 0.06), '#fde68a', 1); }
+      katzeMalen(ctx, bild(oben ? S.seite : 0, S.gesicht), G.cx, G.cy, G.gr);
+      if (oben){ var P = pfote(G, S.seite); textMalen(ctx, 'Let’s Miau!', P.x + (S.seite < 0 ? 52 : -52), P.y - G.gr * 0.2, Math.min(26, W * 0.065), '#fde68a', 1); }
       S.funken.forEach(function(f){ sternMalen(ctx, f.x, f.y, 5 * (1 - f.t / 0.6) + 1, '#fde047'); });
       S.effekte.forEach(function(e){ textMalen(ctx, e.text, e.x, e.y - e.t * 40, Math.min(34, W * 0.085), e.farbe, 1 - e.t / 0.9); });
       if (S.punkte === 0 && S.leben === 3 && S.phase === 'warten') textMalen(ctx, 'Warte, bis sie die Pfote hebt …', W / 2, H * 0.12, Math.min(22, W * 0.055), '#e9d5ff', 0.9);
@@ -490,12 +557,218 @@ function highfive(g){
   };
 }
 
+// ===================== Spiel 4: Katzen-Sprint =====================
+function sprint(g){
+  var S;
+  function geo(){ var k = Math.max(56, Math.min(g.W * 0.24, g.H * 0.2)); return { k: k, boden: g.H * 0.8, x: g.W * 0.24 }; }
+  function anzeige(){ g.hud(Math.floor(S.m) + ' m · ⭐ ' + S.sterne); }
+  return {
+    zustand: function(){ return { m: Math.floor(S.m), sterne: S.sterne, fertig: S.fertig || S.ende > 0 }; },
+    reset: function(){
+      S = { y: 0, vy: 0, spruenge: 2, tempo: g.W * 0.55, m: 0, sterne: 0, hindernisse: [], sternListe: [], bis: 1.3, sternBis: 2.0, t: 0,
+        fertig: false, ende: 0, effekte: [], katze: meineKatze({ gesicht: 'froh' }) };
+      katzeBild(S.katze); katzeBild(meineKatze({ gesicht: 'grummel' }));
+      anzeige();
+    },
+    tipp: function(){
+      if (S.fertig || S.ende > 0 || S.spruenge <= 0) return;
+      var G = geo(); S.vy = -Math.sqrt(2 * (G.k * 26) * (G.k * 1.55)); S.spruenge--;
+    },
+    update: function(dt){
+      if (S.fertig) return;
+      var G = geo();
+      S.effekte.forEach(function(e){ e.t += dt; });
+      S.effekte = S.effekte.filter(function(e){ return e.t < 0.8; });
+      if (S.ende > 0){
+        S.ende -= dt;
+        if (S.ende <= 0){ S.fertig = true; var m = Math.floor(S.m); g.ende(m, m + ' m geschafft' + (S.sterne ? ' · ⭐ ' + S.sterne : '')); }
+        return;
+      }
+      S.t += dt;
+      S.tempo = g.W * (0.55 + Math.min(0.9, S.t * 0.018));
+      var weg = S.tempo * dt;
+      S.m += weg / (G.k * 1.2);
+      S.vy += G.k * 26 * dt; S.y += S.vy * dt;
+      if (S.y >= 0){ S.y = 0; S.vy = 0; S.spruenge = 2; }
+      S.bis -= dt;
+      if (S.bis <= 0){
+        var huerde = Math.random() < 0.35;
+        S.hindernisse.push({ x: g.W + 20, w: huerde ? G.k * 0.34 : G.k * 0.44, h: huerde ? G.k * 0.78 : G.k * 0.5, huerde: huerde });
+        S.bis = zufall(0.85, 1.7) * Math.max(0.55, 1 - S.t * 0.006);
+      }
+      S.sternBis -= dt;
+      if (S.sternBis <= 0){ S.sternListe.push({ x: g.W + 20, y: -G.k * zufall(1.0, 1.9) }); S.sternBis = zufall(1.6, 3.2); }
+      S.hindernisse.forEach(function(o){ o.x -= weg; });
+      S.hindernisse = S.hindernisse.filter(function(o){ return o.x + o.w > -20; });
+      S.sternListe.forEach(function(s){ s.x -= weg; });
+      S.sternListe = S.sternListe.filter(function(s){ return s.x > -20 && !s.weg; });
+      var kx1 = G.x - G.k * 0.3, kx2 = G.x + G.k * 0.3, ky2 = G.boden + S.y - G.k * 0.08, ky1 = ky2 - G.k * 0.8;
+      S.hindernisse.forEach(function(o){
+        if (S.ende > 0) return;
+        if (o.x < kx2 && o.x + o.w > kx1 && G.boden - o.h < ky2 && G.boden > ky1){
+          S.ende = 0.9; S.katze = meineKatze({ gesicht: 'grummel' });
+          S.effekte.push({ t: 0, text: 'Autsch!', farbe: '#fca5a5', x: G.x, y: ky1 - 12 });
+        }
+      });
+      S.sternListe.forEach(function(s){
+        var sy = G.boden + s.y;
+        if (!s.weg && Math.abs(s.x - G.x) < G.k * 0.45 && Math.abs(sy - (ky1 + ky2) / 2) < G.k * 0.6){
+          s.weg = true; S.sterne++; S.effekte.push({ t: 0, text: '+1 ⭐', farbe: '#fde047', x: s.x, y: sy - 18 });
+        }
+      });
+      anzeige();
+    },
+    malen: function(ctx){
+      var G = geo(), W = g.W, H = g.H, gr = ctx.createLinearGradient(0, 0, 0, H);
+      gr.addColorStop(0, '#20406a'); gr.addColorStop(1, '#0d2038');
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+      // Hallenfenster im Hintergrund (ziehen langsam vorbei)
+      var fb = G.k * 1.4, fo = ((S.t * S.tempo) * 0.25) % (fb * 2);
+      ctx.fillStyle = 'rgba(255,255,255,.06)';
+      for (var fx = -fo; fx < W; fx += fb * 2) ctx.fillRect(fx, H * 0.12, fb, H * 0.22);
+      // Hallenboden
+      ctx.fillStyle = '#c98a4f'; ctx.fillRect(0, G.boden, W, H - G.boden);
+      ctx.strokeStyle = 'rgba(80,40,10,.25)'; ctx.lineWidth = 2;
+      var ab = G.k * 0.9, off = (S.t * S.tempo) % ab;
+      for (var x = -off; x < W + ab; x += ab) linie(ctx, x, G.boden + 4, x - G.k * 0.4, H);
+      ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 3; linie(ctx, 0, G.boden, W, G.boden);
+      S.sternListe.forEach(function(s){ sternMalen(ctx, s.x, G.boden + s.y, G.k * 0.2, '#fde047'); });
+      S.hindernisse.forEach(function(o){
+        if (o.huerde){
+          ctx.fillStyle = '#e5e7eb'; ctx.fillRect(o.x, G.boden - o.h, G.k * 0.06, o.h); ctx.fillRect(o.x + o.w - G.k * 0.06, G.boden - o.h, G.k * 0.06, o.h);
+          streifenPfosten(ctx, o.x - G.k * 0.04, G.boden - o.h, o.w + G.k * 0.08, G.k * 0.1, false);
+        } else {
+          ctx.fillStyle = '#ff7a1a'; ctx.beginPath(); ctx.moveTo(o.x, G.boden); ctx.lineTo(o.x + o.w * 0.38, G.boden - o.h); ctx.lineTo(o.x + o.w * 0.62, G.boden - o.h); ctx.lineTo(o.x + o.w, G.boden); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(o.x + o.w * 0.2, G.boden - o.h * 0.42); ctx.lineTo(o.x + o.w * 0.8, G.boden - o.h * 0.42); ctx.lineTo(o.x + o.w * 0.86, G.boden - o.h * 0.25); ctx.lineTo(o.x + o.w * 0.14, G.boden - o.h * 0.25); ctx.closePath(); ctx.fill();
+        }
+      });
+      var K = G.k * 1.2, hopp = S.y === 0 && S.ende <= 0 ? Math.abs(Math.sin(S.t * 12)) * G.k * 0.07 : 0;
+      katzeMalen(ctx, S.katze, G.x, G.boden + S.y - K * 0.42 - hopp, K);
+      S.effekte.forEach(function(e){ textMalen(ctx, e.text, e.x, e.y - e.t * 40, Math.min(30, W * 0.075), e.farbe, 1 - e.t / 0.8); });
+      if (S.t < 2.6 && S.ende <= 0) textMalen(ctx, 'Tippen = springen · zweimal = Doppelsprung', W / 2, H * 0.08, Math.min(19, W * 0.048), '#e2e8f0', 0.9);
+    }
+  };
+}
+
+// ===================== Spiel 5: Muckibude (Fortschritt bleibt gespeichert) =====================
+// Eigene Währung „Kraft“ nur für dieses Spiel – sie wird nie zu Trainingspunkten. An Tagen mit gespeicherter Einheit gibt es doppelte Kraft.
+var MUCKI_UP = [
+  { id: 'hantel', n: 'Schwerere Hantel', text: '+1 Kraft pro Tipp', basis: 15, faktor: 1.6 },
+  { id: 'partner', n: 'Trainingspartner', text: '+1 Kraft pro Sekunde, auch wenn du weg bist (bis 2 Stunden)', basis: 60, faktor: 1.7 },
+  { id: 'musik', n: 'Gute Musik', text: '+25 % auf alles', basis: 250, faktor: 2.2 }
+];
+var MUCKI_STUFEN = [[0, 'Rookie'], [100, 'Fortgeschritten'], [500, 'Kraftpaket'], [2000, 'Maschine'], [8000, 'Legende'], [30000, 'Titan']];
+function mucki(){
+  var m = ST.mucki;
+  if (!m || typeof m !== 'object') m = ST.mucki = { kraft: 0, gesamt: 0, hantel: 0, partner: 0, musik: 0, zeit: Date.now() };
+  return m;
+}
+function heuteTrainiert(){ try { var h = A.heute(); return (A.einheiten() || []).some(function(x){ return x.d === h; }); } catch (e) { return false; } }
+function muckiFaktor(mitHeute){ return (1 + 0.25 * mucki().musik) * (mitHeute && heuteTrainiert() ? 2 : 1); }
+function muckiKosten(u){ return Math.round(u.basis * Math.pow(u.faktor, mucki()[u.id] || 0)); }
+function muckiStufe(gesamt){ var i = 0; MUCKI_STUFEN.forEach(function(s, j){ if (gesamt >= s[0]) i = j; }); return i; }
+function muckibudeStarten(){
+  if (document.querySelector('.ogt-mini-spiel')) return;
+  var m = mucki(), jetzt = Date.now(), weg = Math.min(7200, Math.max(0, (jetzt - (+m.zeit || jetzt)) / 1000));
+  var offline = Math.floor(weg * m.partner * muckiFaktor(false));
+  if (offline > 0){ m.kraft += offline; m.gesamt += offline; }
+  m.zeit = jetzt;
+  var heute = heuteTrainiert(), bruch = 0, hub = 0, pops = [], laeuft = true, raf = 0, letzte = 0, merken = 0;
+  var lay = el('div', 'ogt-mini-spiel ogt-mini-mucki');
+  lay.setAttribute('role', 'dialog'); lay.setAttribute('aria-modal', 'true'); lay.setAttribute('aria-label', 'Muckibude');
+  lay.innerHTML = '<div class="ogt-mini-hud"><b>Muckibude</b><span class="ogt-mini-hud-r"></span><button type="button" class="ogt-mini-x" data-spiel="zu" aria-label="Schließen">✕</button></div>'
+    + '<div class="ogt-mini-buehne"><canvas></canvas></div><div class="ogt-mini-muckipanel"></div>';
+  document.body.appendChild(lay); sperren();
+  var cv = lay.querySelector('canvas'), ctx = cv.getContext('2d'), hud = lay.querySelector('.ogt-mini-hud-r'), panel = lay.querySelector('.ogt-mini-muckipanel'), W = 1, H = 1;
+  var katzeN = meineKatze(), katzeHoch = meineKatze({ gesicht: 'froh', arm: 1 });
+  katzeBild(katzeN); katzeBild(katzeHoch);
+  setTimeout(function(){ if (laeuft) malen(); }, 120);
+  function groesse(){ var r = cv.getBoundingClientRect(), dpr = Math.min(2.5, window.devicePixelRatio || 1); W = Math.max(1, r.width); H = Math.max(1, r.height); cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  function proTipp(){ return (1 + m.hantel) * muckiFaktor(true); }
+  function proSek(){ return m.partner * muckiFaktor(true); }
+  function anzeigen(){
+    var s = muckiStufe(m.gesamt), naechste = MUCKI_STUFEN[s + 1];
+    hud.textContent = 'Stufe ' + (s + 1) + ' · ' + MUCKI_STUFEN[s][1];
+    panel.innerHTML = (offline > 0 ? '<p class="ogt-mini-mucki-info">Während du weg warst: +' + zahl(offline) + ' Kraft vom Trainingspartner</p>' : '')
+      + (heute ? '<p class="ogt-mini-mucki-info">Heute trainiert: doppelte Kraft! 💪</p>' : '<p class="ogt-mini-mucki-info leise">Tipp: An Tagen mit gespeicherter Einheit gibt es doppelte Kraft.</p>')
+      + (naechste ? '<div class="ogt-mini-balken"><i style="width:' + begrenzt(Math.round((m.gesamt - MUCKI_STUFEN[s][0]) / (naechste[0] - MUCKI_STUFEN[s][0]) * 100), 2, 100) + '%"></i></div><p class="ogt-mini-mucki-info leise">Nächste Stufe: ' + esc(naechste[1]) + ' bei ' + zahl(naechste[0]) + ' Kraft insgesamt</p>' : '<p class="ogt-mini-mucki-info">Höchste Stufe erreicht – Titan!</p>')
+      + MUCKI_UP.map(function(u){
+        var k = muckiKosten(u), geht = m.kraft >= k;
+        return '<button type="button" class="ogt-mini-upgrade' + (geht ? '' : ' zu') + '" data-mucki="' + u.id + '"><b>' + esc(u.n) + ' <small>Stufe ' + (m[u.id] || 0) + '</small></b><span>' + esc(u.text) + '</span><em>' + zahl(k) + ' Kraft</em></button>';
+      }).join('');
+    offline = 0;
+  }
+  function malen(){
+    var gr = ctx.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#2a2f45'); gr.addColorStop(1, '#151827');
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#3a3f5a'; ctx.fillRect(0, H * 0.82, W, H * 0.18);
+    var K = Math.min(W * 0.66, H * 0.7), cx = W / 2, cy = H * 0.56, oben = hub > 0.25;
+    textMalen(ctx, zahl(Math.floor(m.kraft)) + ' Kraft', cx, H * 0.1, Math.min(40, W * 0.1), '#fde68a', 1);
+    textMalen(ctx, '+' + (Math.round(proTipp() * 10) / 10).toString().replace('.', ',') + ' pro Tipp' + (m.partner ? ' · +' + (Math.round(proSek() * 10) / 10).toString().replace('.', ',') + '/s' : ''), cx, H * 0.18, Math.min(18, W * 0.045), '#cbd5e1', 0.95);
+    katzeMalen(ctx, oben ? katzeHoch : katzeN, cx, cy, K);
+    // Kurzhantel in der Pfote: unten an der Pfote, beim Tippen hochgezogen (Bizeps-Curl)
+    var e = Math.min(1, hub * 1.4), px = cx + K * (0.092 + (0.333 - 0.092) * e), py = cy + K * (0.383 + (-0.025 - 0.383) * e);
+    var hb = K * 0.3, sw = K * (0.055 + 0.008 * Math.min(10, m.hantel));
+    ctx.fillStyle = '#9aa3b5'; ctx.fillRect(px - hb / 2, py - K * 0.014, hb, K * 0.028);
+    ctx.fillStyle = '#1f2433'; ctx.strokeStyle = '#5b6478'; ctx.lineWidth = Math.max(1.5, K * 0.008);
+    [-1, 1].forEach(function(s){ var x0 = px + s * hb / 2 - sw * 0.35; ctx.fillRect(x0, py - sw, sw * 0.7, sw * 2); ctx.strokeRect(x0, py - sw, sw * 0.7, sw * 2); });
+    var F = FELL[meinFell()];
+    ctx.fillStyle = F.creme; ctx.strokeStyle = F.linie; ctx.lineWidth = Math.max(2, K * 0.022);
+    ctx.beginPath(); ctx.arc(px, py, K * 0.055, 0, TAU); ctx.fill(); ctx.stroke();
+    pops.forEach(function(p){ textMalen(ctx, p.text, p.x, p.y - p.t * 60, Math.min(26, W * 0.065), '#86efac', 1 - p.t / 0.8); });
+    if (m.gesamt < 5) textMalen(ctx, 'Tippen = eine Wiederholung', cx, H * 0.9, Math.min(20, W * 0.05), '#e2e8f0', 0.9);
+  }
+  function schritt(ts){
+    if (!laeuft) return;
+    var dt = letzte ? Math.min(0.1, (ts - letzte) / 1000) : 0; letzte = ts;
+    var auto = proSek() * dt; m.kraft += auto; m.gesamt += auto;
+    hub = Math.max(0, hub - dt * 3.2);
+    pops.forEach(function(p){ p.t += dt; }); pops = pops.filter(function(p){ return p.t < 0.8; });
+    bruch += dt; if (bruch > 0.5){ bruch = 0; anzeigenLeicht(); }
+    merken += dt; if (merken > 3){ merken = 0; m.zeit = Date.now(); ST.rekord.muckibude = muckiStufe(m.gesamt) + 1; sichern(); }
+    malen();
+    raf = requestAnimationFrame(schritt);
+  }
+  var LETZTER_STAND = '';
+  function anzeigenLeicht(){   // Knöpfe nur neu bauen, wenn sich etwas geändert hat (bezahlbar / Stufe)
+    var s = muckiStufe(m.gesamt) + '|' + MUCKI_UP.map(function(u){ return (m.kraft >= muckiKosten(u) ? 1 : 0) + ':' + (m[u.id] || 0); }).join(',');
+    if (s !== LETZTER_STAND){ LETZTER_STAND = s; anzeigen(); }
+  }
+  function beenden(){
+    laeuft = false; cancelAnimationFrame(raf); m.zeit = Date.now(); ST.rekord.muckibude = muckiStufe(m.gesamt) + 1; sichern();
+    window.removeEventListener('resize', groesse); document.removeEventListener('visibilitychange', sicht);
+    lay.remove(); sperren(); neuZeichnen();
+  }
+  function sicht(){ if (document.visibilityState === 'hidden'){ m.zeit = Date.now(); sichern(); } else { letzte = 0; } }
+  cv.addEventListener('pointerdown', function(ev){
+    if (ev.cancelable) ev.preventDefault();
+    var n = proTipp(); m.kraft += n; m.gesamt += n; hub = 1;
+    var r = cv.getBoundingClientRect();
+    pops.push({ text: '+' + (Math.round(n * 10) / 10).toString().replace('.', ','), x: ev.clientX - r.left, y: ev.clientY - r.top - 20, t: 0 });
+  });
+  lay.addEventListener('click', function(ev){
+    var b = ev.target && ev.target.closest ? ev.target.closest('[data-mucki], [data-spiel="zu"]') : null; if (!b) return;
+    if (b.getAttribute('data-spiel') === 'zu'){ beenden(); return; }
+    var u = MUCKI_UP.filter(function(x){ return x.id === b.getAttribute('data-mucki'); })[0]; if (!u) return;
+    var k = muckiKosten(u);
+    if (m.kraft < k){ hinweis('Noch ' + zahl(Math.ceil(k - m.kraft)) + ' Kraft – weiter tippen!'); return; }
+    m.kraft -= k; m[u.id] = (m[u.id] || 0) + 1; sichern(); LETZTER_STAND = ''; anzeigenLeicht();
+    hinweis(u.n + ': jetzt Stufe ' + m[u.id]);
+  });
+  window.addEventListener('resize', groesse); document.addEventListener('visibilitychange', sicht);
+  groesse(); anzeigen(); LETZTER_STAND = ''; anzeigenLeicht(); malen();
+  raf = requestAnimationFrame(schritt);
+  A.spiel = { id: 'muckibude', laeuft: function(){ return laeuft; }, zustand: function(){ return { kraft: m.kraft, gesamt: m.gesamt, hantel: m.hantel, partner: m.partner }; }, groesse: function(){ return { W: W, H: H }; } };
+}
+
+
 // ===================== Spiel-Rahmen: Vollbild, Start- und Endtafel, Pause =====================
 function sperren(){
-  var offen = !!(document.getElementById('ogt-mini') || document.querySelector('.ogt-mini-spiel'));
+  var offen = !!document.querySelector('.ogt-mini-spiel, .ogt-mini-kaufen');
   document.documentElement.classList.toggle('ogt-mini-offen', offen);
 }
 function spielStarten(id){
+  if (id === 'muckibude') return muckibudeStarten();
   var def = SPIELE[id]; if (!def || document.querySelector('.ogt-mini-spiel')) return;
   var lay = el('div', 'ogt-mini-spiel');
   lay.setAttribute('role', 'dialog'); lay.setAttribute('aria-modal', 'true'); lay.setAttribute('aria-label', def.n);
@@ -559,11 +832,13 @@ function spielStarten(id){
   });
   window.addEventListener('resize', neuGross); document.addEventListener('visibilitychange', sicht);
   groesse(); spiel.reset(); spiel.malen(ctx);
+  [150, 400].forEach(function(ms){ setTimeout(function(){ if (!laeuft && !zu){ try { spiel.malen(ctx); } catch (e) {} } }, ms); });   // Katzenbild lädt kurz nach
   var rek = ST.rekord[id];
   tafelZeigen('<h2>' + esc(def.n) + '</h2><p>' + esc(def.text) + '</p>' + (rek != null ? '<p>Dein Rekord: ' + rek + ' ' + esc(def.einheit) + '</p>' : '') + knoepfe());
   // für die automatischen Prüfungen (tests/tests_minigame.html): Stand des Spiels lesen
   A.spiel = { id: id, laeuft: function(){ return laeuft; }, zustand: function(){ return spiel.zustand(); }, groesse: function(){ return { W: g.W, H: g.H }; } };
 }
+
 
 // ===================== Feiern nach dem Training =====================
 function leinwand(effekt){
@@ -680,17 +955,84 @@ function burst(x, y){
     } };
   });
 }
+// weitere Feiern (Runde 2): Herzchen, Sternschnuppen, Regenbogen, Katzen-Parade
+function herzMalen(ctx, x, y, r, farbe){
+  ctx.save(); ctx.translate(x, y); ctx.scale(r / 10, r / 10);
+  ctx.beginPath(); ctx.moveTo(0, 7); ctx.bezierCurveTo(-11, -1, -6, -10, 0, -4); ctx.bezierCurveTo(6, -10, 11, -1, 0, 7); ctx.closePath();
+  ctx.fillStyle = farbe; ctx.fill(); ctx.restore();
+}
+function wolke(ctx, x, y, r){ ctx.fillStyle = '#ffffff'; kreis(ctx, x - r, y, r * 0.9); kreis(ctx, x, y - r * 0.5, r * 1.1); kreis(ctx, x + r, y, r * 0.9); kreis(ctx, x, y + r * 0.2, r); }
+EFFEKT.herzen = function(W, H){
+  var farben = ['#ff4f86', '#ff7aa8', '#ff2d55', '#ffb3c8', '#e11d74'], h = [];
+  for (var i = 0; i < 46; i++) h.push({ x: zufall(0, W), y: H + zufall(10, H * 0.5), r: zufall(8, 18), v: zufall(150, 280), ph: zufall(0, TAU), c: farben[i % farben.length] });
+  return { dauer: 3.2, malen: function(ctx, t, dt){
+    h.forEach(function(p){ p.y -= p.v * dt; herzMalen(ctx, p.x + Math.sin(t * 3 + p.ph) * 18, p.y, p.r, p.c); });
+  } };
+};
+EFFEKT.sterne = function(W, H){
+  var s = [], hg = [];
+  for (var i = 0; i < 9; i++) s.push({ start: i * 0.28 + zufall(0, 0.2), x: zufall(W * 0.3, W * 1.1), y: zufall(-H * 0.1, H * 0.35), v: zufall(500, 800), l: zufall(80, 160) });
+  for (var j = 0; j < 40; j++) hg.push({ x: zufall(0, W), y: zufall(0, H), p: zufall(0, TAU), r: zufall(1, 2.4) });
+  return { dauer: 3.4, malen: function(ctx, t){
+    ctx.fillStyle = 'rgba(8,10,35,' + (0.5 * Math.min(1, t * 3)).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H);
+    hg.forEach(function(p){ ctx.fillStyle = 'rgba(255,255,255,' + (0.4 + 0.6 * Math.abs(Math.sin(t * 3 + p.p))).toFixed(2) + ')'; kreis(ctx, p.x, p.y, p.r); });
+    s.forEach(function(p){
+      if (t < p.start) return;
+      var tt = t - p.start, x = p.x - p.v * tt * 0.8, y = p.y + p.v * tt * 0.6;
+      var gr = ctx.createLinearGradient(x, y, x + p.l * 0.8, y - p.l * 0.6);
+      gr.addColorStop(0, 'rgba(255,255,220,1)'); gr.addColorStop(1, 'rgba(255,255,220,0)');
+      ctx.strokeStyle = gr; ctx.lineWidth = 3; ctx.lineCap = 'round'; linie(ctx, x, y, x + p.l * 0.8, y - p.l * 0.6);
+      sternMalen(ctx, x, y, 6, '#fff7c2');
+    });
+  } };
+};
+EFFEKT.regenbogen = function(W, H){
+  var farben = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#00c7be', '#007aff', '#af52de'], funken = [];
+  for (var i = 0; i < 30; i++) funken.push({ w: zufall(Math.PI, TAU), d: zufall(0.85, 1.15), p: zufall(0, TAU) });
+  return { dauer: 3.4, malen: function(ctx, t){
+    var cx = W / 2, cy = H * 0.62, R = Math.min(W * 0.46, H * 0.42), b = R * 0.075, e = Math.min(1, t / 0.9), ende = Math.PI + Math.PI * (1 - Math.pow(1 - e, 3));
+    ctx.lineCap = 'butt';
+    farben.forEach(function(f, i){ ctx.strokeStyle = f; ctx.lineWidth = b + 1; ctx.beginPath(); ctx.arc(cx, cy, R - i * b, Math.PI, ende); ctx.stroke(); });
+    if (t > 0.3) wolke(ctx, cx - R + b * 3, cy + b, b * 2.2);
+    if (t > 0.9) wolke(ctx, cx + R - b * 3, cy + b, b * 2.2);
+    funken.forEach(function(f){
+      if (t < 0.8) return;
+      var r = R * f.d, x = cx + Math.cos(f.w) * r, y = cy + Math.sin(f.w) * r, a = 0.5 + 0.5 * Math.sin(t * 6 + f.p);
+      sternMalen(ctx, x, y, 4 * a + 1, 'rgba(255,255,255,' + a.toFixed(2) + ')');
+    });
+    if (t > 1.0) textMalen(ctx, 'Stark!', cx, cy + b * 4.5, Math.min(54, W * 0.13), '#ffffff', Math.min(1, (t - 1) * 3));
+  } };
+};
+EFFEKT.parade = function(W, H){
+  var felle = Object.keys(FELL), k = Math.max(64, Math.min(W * 0.24, 120)), katzen = [];
+  for (var i = 0; i < 6; i++){
+    var o = { fell: i === 0 ? meinFell() : felle[(i + 1) % felle.length], gesicht: i % 2 ? 'froh' : '', arm: i % 3 === 2 ? 1 : 0 };
+    if (i === 0) o.deko = meineDeko();
+    katzen.push({ x: -k * (0.6 + i * 0.95), opt: o, ph: zufall(0, TAU), v: W * zufall(0.44, 0.52) });
+    katzeBild(o);
+  }
+  return { dauer: 3.8, malen: function(ctx, t, dt){
+    katzen.forEach(function(c, i){
+      c.x += c.v * dt;
+      var y = H - k * 0.62 - Math.abs(Math.sin(t * 9 + c.ph)) * k * 0.18;
+      katzeMalen(ctx, c.opt, c.x, y, k);
+      if (Math.sin(t * 2.2 + i * 1.3) > 0.9) textMalen(ctx, i % 2 ? 'Miau!' : 'Let’s Miau!', c.x, y - k * 0.6, Math.min(20, W * 0.05), '#ffffff', 1);
+    });
+  } };
+};
+
+// ===================== Feier mit der Katze und Auswahl der Feier =====================
 function katzeFeier(){
   var alt = document.querySelector('.ogt-mini-katzenfeier'); if (alt) alt.remove();
-  var deko = aktiveDeko(stand().punkte), box = el('div', 'ogt-mini-katzenfeier');
-  box.innerHTML = '<div class="ogt-mini-sprech">High Five!</div><button type="button" class="ogt-mini-katze-gross" aria-label="Pixelkatze abklatschen">' + katzeSvg({ arm: 1, deko: deko }) + '</button>';
+  var box = el('div', 'ogt-mini-katzenfeier');
+  box.innerHTML = '<div class="ogt-mini-sprech">Let’s Miau!</div><button type="button" class="ogt-mini-katze-gross" aria-label="Katze abklatschen">' + katzeSvg(meineKatze({ arm: 1 })) + '</button>';
   document.body.appendChild(box);
   requestAnimationFrame(function(){ requestAnimationFrame(function(){ box.classList.add('da'); }); });
   var knopf = box.querySelector('button'), sprech = box.querySelector('.ogt-mini-sprech'), fertig = false, zeit = setTimeout(weg, 4500);
   knopf.addEventListener('pointerdown', function(ev){
     if (ev.cancelable) ev.preventDefault();
     if (fertig) return; fertig = true;
-    knopf.innerHTML = katzeSvg({ arm: 1, gesicht: 'froh', deko: deko });
+    knopf.innerHTML = katzeSvg(meineKatze({ arm: 1, gesicht: 'froh' }));
     sprech.textContent = 'Patsch! 🙌'; box.classList.add('patsch');
     burst(ev.clientX, ev.clientY);
     clearTimeout(zeit); zeit = setTimeout(weg, 1500);
@@ -699,12 +1041,13 @@ function katzeFeier(){
 }
 function feiern(id){
   if (id === 'zufall'){
-    var p = stand().punkte, frei = FEIERN.filter(function(f){ return f.id !== 'zufall' && p >= f.ab; });
+    var frei = FEIERN.filter(function(f){ return f.id !== 'zufall' && besitzt('feier:' + f.id); });
     id = frei.length ? frei[Math.floor(Math.random() * frei.length)].id : 'konfetti';
   }
   if (id === 'katze') return katzeFeier();
   if (EFFEKT[id]) leinwand(EFFEKT[id]);
 }
+
 
 // ===================== Kleine Anzeigen =====================
 var ZEIGER = { x: 0, y: 0, t: 0 };
@@ -731,115 +1074,153 @@ function ergebnisKarte(html, dauer){
   k.addEventListener('click', function(){ setTimeout(zu, 0); });
 }
 
+
 // ===================== Startseite: Punkte-Karte =====================
-var SPRUECHE = ['Miau!', 'Schnurr …', 'High Five? 🐾', 'Mrrrau!', 'Gut gemacht!', '*blinzel*'];
+var SPRUECHE = ['Let’s Miau!', 'Auf!', 'Miau!', 'Lass knacken!', 'Schnurr …', 'Gut gemacht!', '*blinzel*'];
 function karteFuellen(st){
   var platz = document.getElementById('ogt-mini-platz'); if (!platz) return;
   st = st || stand();
-  var p = st.punkte, n = naechstes(p), vor = vorige(p), pct = n ? begrenzt(Math.round((p - vor) / Math.max(1, n.ab - vor) * 100), 3, 100) : 100;
+  var z = naechstesZiel(), pct = z ? begrenzt(Math.round(st.konto / Math.max(1, z.preis) * 100), 3, 100) : 100;
   platz.innerHTML = '<section class="card ogt-mini-karte" aria-label="Punkte und Spiele">'
-    + (p >= KATZE_AB ? '<button type="button" class="ogt-mini-begleiter" data-mini="streicheln" aria-label="Pixelkatze antippen">' + katzeSvg({ deko: aktiveDeko(p) }) + '</button>' : '')
+    + '<button type="button" class="ogt-mini-begleiter" data-mini="streicheln" aria-label="Katze antippen">' + katzeSvg(meineKatze()) + '</button>'
     + '<p class="eyebrow">Punkte & Spiele' + (TEST ? ' · Testplan' : '') + '</p>'
-    + '<p class="ogt-mini-zahl"><span aria-hidden="true">⭐</span> ' + zahl(p) + ' <small>Punkte</small></p>'
-    + '<div class="ogt-mini-balken" aria-hidden="true"><i style="width:' + pct + '%"></i></div>'
-    + '<p class="small muted ogt-mini-weiter">' + (n ? 'Noch ' + zahl(n.ab - p) + ' ⭐ bis: ' + esc(n.n) : 'Alles freigeschaltet – stark!') + '</p>'
-    + '<div class="row"><button type="button" class="btn pri" data-mini="oeffnen">Spiele & Sammlung</button></div>'
+    + '<p class="ogt-mini-zahl"><span aria-hidden="true">⭐</span> ' + zahl(st.konto) + ' <small>Punkte</small></p>'
+    + (z ? '<div class="ogt-mini-balken" aria-hidden="true"><i style="width:' + pct + '%"></i></div><p class="small muted ogt-mini-weiter">'
+      + (st.konto >= z.preis ? 'Im Shop kannst du dir jetzt etwas holen, z. B. ' + esc(z.n) + ' (' + zahl(z.preis) + ' ⭐)' : 'Noch ' + zahl(z.preis - st.konto) + ' ⭐ bis: ' + esc(z.n)) + '</p>'
+      : '<p class="small muted ogt-mini-weiter">Alles gesammelt – stark!</p>')
+    + '<div class="row"><button type="button" class="btn pri" data-mini="zum-tab">Spiele & Shop</button></div>'
     + '</section>';
 }
 function streicheln(b){
-  var deko = aktiveDeko(stand().punkte);
-  b.innerHTML = katzeSvg({ arm: 1, gesicht: 'froh', deko: deko });
+  var gross = b.classList.contains('gross');
+  b.innerHTML = katzeSvg(meineKatze({ arm: 1, gesicht: 'froh' }));
   var karte = b.closest('.ogt-mini-karte');
   if (karte){
     var alt = karte.querySelector('.ogt-mini-sprechblase'); if (alt) alt.remove();
-    var s = el('div', 'ogt-mini-sprechblase'); s.textContent = SPRUECHE[Math.floor(Math.random() * SPRUECHE.length)];
+    var s = el('div', 'ogt-mini-sprechblase' + (gross ? ' gross' : '')); s.textContent = SPRUECHE[Math.floor(Math.random() * SPRUECHE.length)];
     karte.appendChild(s); setTimeout(function(){ s.remove(); }, 1700);
   }
-  setTimeout(function(){ if (b.isConnected) b.innerHTML = katzeSvg({ deko: deko }); }, 750);
+  setTimeout(function(){ if (b.isConnected) b.innerHTML = katzeSvg(meineKatze(gross ? { arm: 1 } : {})); }, 800);
 }
 
-// ===================== Fenster „Spiele & Sammlung“ =====================
-function dingHtml(art, id, bild, name, ab, an, aktiv){
-  return '<button type="button" class="ogt-mini-ding' + (an ? '' : ' zu') + (aktiv ? ' aktiv' : '') + '" data-mini="' + (an ? art : 'gesperrt') + '" data-id="' + esc(id) + '" data-ab="' + ab + '" aria-pressed="' + (aktiv ? 'true' : 'false') + '">'
-    + '<span class="ogt-mini-bild">' + bild + '</span><span class="ogt-mini-name">' + esc(name) + '</span>'
-    + '<span class="ogt-mini-ab">' + (an ? (aktiv ? '✓ aktiv' : 'antippen') : '🔒 ' + zahl(ab) + ' ⭐') + '</span></button>';
+// ===================== Reiter „Spiele“: Punktestand, Spiele, Shop =====================
+var REGELN_OFFEN = false;
+function bildFuer(kennung){
+  var d = ding(kennung); if (!d) return '';
+  if (d.art === 'spiel') return '<span class="ogt-mini-emoji">' + SPIELE[d.id].icon + '</span>';
+  if (d.art === 'feier'){
+    var f = FEIERN.filter(function(x){ return x.id === d.id; })[0];
+    return f.icon === 'katze' ? katzeSvg(meineKatze({ arm: 1 })) : (f.icon === 'ball' ? ballSvg() : (f.icon === 'katzen' ? katzenSvg() : '<span class="ogt-mini-emoji">' + f.icon + '</span>'));
+  }
+  if (d.art === 'deko'){ var o = {}; o[d.platz] = d.id; return katzeSvg({ deko: o, fell: meinFell() }); }
+  return katzeSvg({ fell: d.id });
 }
-function fensterHtml(){
-  var st = stand(), p = st.punkte, h = '', deko = aktiveDeko(p), feier = aktiveFeier(p);
-  h += '<div class="ogt-mini-kopf"><h2 id="ogt-mini-titel">⭐ ' + zahl(p) + ' Punkte</h2><button type="button" class="ogt-mini-x" data-mini="zu" aria-label="Schließen">✕</button></div>';
-  h += '<details class="ogt-mini-regeln"><summary>So gibt’s Punkte</summary><ul>'
+function aktiv(kennung){
+  var d = ding(kennung); if (!d || !besitzt(kennung)) return false;
+  if (d.art === 'feier') return aktiveFeier() === d.id;
+  if (d.art === 'deko') return meineDeko()[d.platz] === d.id;
+  if (d.art === 'fell') return meinFell() === d.id;
+  return false;
+}
+function dingKachel(kennung, st){
+  var d = ding(kennung); if (!d) return '';
+  var hat = besitzt(kennung), an = aktiv(kennung), geht = !hat && st.konto >= d.preis, zeile;
+  if (an) zeile = d.art === 'deko' ? '✓ trägt sie' : '✓ aktiv';
+  else if (hat) zeile = d.art === 'deko' ? 'anziehen' : 'auswählen';
+  else zeile = '⭐ ' + zahl(d.preis);
+  return '<button type="button" class="ogt-mini-ding' + (an ? ' aktiv' : '') + (hat ? ' hat' : (geht ? ' geht' : ' teuer')) + '" data-mini="' + (hat ? 'waehlen' : 'kaufen') + '" data-k="' + esc(kennung) + '" aria-pressed="' + (an ? 'true' : 'false') + '">'
+    + '<span class="ogt-mini-bild">' + bildFuer(kennung) + '</span><span class="ogt-mini-name">' + esc(d.n) + '</span>'
+    + (d.art === 'deko' ? '<span class="ogt-mini-platz">' + PLATZ[d.platz] + '</span>' : '')
+    + '<span class="ogt-mini-ab">' + zeile + '</span></button>';
+}
+function spielZeile(id, st){
+  var s = SPIELE[id], k = 'spiel:' + id, hat = besitzt(k), rek = ST.rekord[id], rekText = rek != null ? (id === 'muckibude' ? 'Stufe ' + rek : rek + ' ' + s.einheit) : '';
+  return '<div class="ogt-mini-spielzeile' + (hat ? '' : ' zu') + '"><span class="ogt-mini-icon" aria-hidden="true">' + s.icon + '</span>'
+    + '<div class="ogt-mini-text"><b>' + esc(s.n) + '</b><span>' + esc(s.text) + '</span>' + (rekText ? '<span class="ogt-mini-rek">Rekord: ' + esc(rekText) + '</span>' : '') + '</div>'
+    + (hat ? '<button type="button" class="ogt-mini-los" data-mini="spielen" data-id="' + id + '">Spielen</button>'
+      : '<button type="button" class="ogt-mini-preis' + (st.konto >= s.preis ? ' geht' : '') + '" data-mini="kaufen" data-k="' + k + '">⭐ ' + zahl(s.preis) + '</button>') + '</div>';
+}
+function regelnHtml(st){
+  var boni = boniAktiv(), entdeckt = boni.filter(function(b){ return ST.entdeckt[b.id]; });
+  return '<details class="ogt-mini-regeln"' + (REGELN_OFFEN ? ' open' : '') + '><summary data-mini="regeln">So gibt’s Punkte</summary><ul>'
     + '<li>Einheit gespeichert: <b>+' + REGEL.einheit + '</b></li>'
     + '<li>jede Übung aus dem Plan (mindestens ein Satz): <b>+' + REGEL.uebung + '</b></li>'
     + '<li>Morgen-Check beantwortet: <b>+' + REGEL.morgen + '</b></li>'
     + '<li>ganze Woche geschafft: <b>+' + REGEL.woche + '</b></li></ul>'
-    + '<p>Optionale Übungen und Extra-Training zählen nicht extra – Punkte gibt’s fürs Dranbleiben, nicht fürs Mehr-Machen.</p></details>';
-  var spiele = spielListe();
-  if (spiele.length){
-    h += '<h3>Minispiele</h3><div class="ogt-mini-liste">';
-    spiele.forEach(function(id){
-      var s = SPIELE[id], ab = spielAb(id), an = p >= ab, rek = ST.rekord[id];
-      h += '<div class="ogt-mini-spielzeile' + (an ? '' : ' zu') + '"><span class="ogt-mini-icon" aria-hidden="true">' + s.icon + '</span>'
-        + '<div class="ogt-mini-text"><b>' + esc(s.n) + '</b><span>' + esc(s.text) + '</span>'
-        + (rek != null ? '<span class="ogt-mini-rek">Rekord: ' + rek + ' ' + esc(s.einheit) + '</span>' : '') + '</div>'
-        + (an ? '<button type="button" class="ogt-mini-los" data-mini="spielen" data-id="' + id + '">Spielen</button>'
-          : '<button type="button" class="ogt-mini-sperre" data-mini="gesperrt" data-ab="' + ab + '">🔒 ' + zahl(ab) + ' ⭐</button>') + '</div>';
-    });
-    h += '</div>';
-  }
-  h += '<h3>Feier nach dem Training</h3><p class="ogt-mini-klein">Antippen zum Aussuchen und Ansehen – sie kommt nach „Training speichern“.</p><div class="ogt-mini-raster">';
-  FEIERN.forEach(function(f){
-    var bild = f.icon === 'katze' ? katzeSvg({ arm: 1, deko: deko }) : (f.icon === 'ball' ? ballSvg() : f.icon);
-    h += dingHtml('feier', f.id, bild, f.n, f.ab, p >= f.ab, p >= f.ab && feier === f.id);
-  });
-  h += '</div><h3>Accessoires für die Pixelkatze</h3><div class="ogt-mini-raster">';
-  h += dingHtml('deko', '', katzeSvg({}), 'ohne', KATZE_AB, p >= KATZE_AB, p >= KATZE_AB && !deko);
-  DEKO.forEach(function(d){ h += dingHtml('deko', d.id, katzeSvg({ deko: d.id }), d.n, d.ab, p >= d.ab, deko === d.id); });
-  h += '</div>';
-  if (TEST) h += '<h3>Nur im Testplan</h3><p class="ogt-mini-klein">Zum Ausprobieren ohne Training. In den echten Plänen gibt es diese Knöpfe nicht.</p>'
-    + '<div class="ogt-mini-reihe"><button type="button" data-mini="test-plus">+100 ⭐</button><button type="button" data-mini="test-null">Testpunkte auf 0</button></div>';
-  h += '<p class="ogt-mini-klein ogt-mini-fuss">Punkte, Rekorde und deine Auswahl bleiben auf diesem Handy – sie werden nicht verschickt.</p>';
-  return h;
+    + '<p>Optionale Übungen und Extra-Training zählen nicht extra – Punkte gibt’s fürs Dranbleiben, nicht fürs Mehr-Machen.</p>'
+    + '<p class="ogt-mini-geheim-kopf">🎁 Geheime Boni: ' + entdeckt.length + ' von ' + boni.length + ' entdeckt</p><ul class="ogt-mini-geheim">'
+    + boni.map(function(b){ return ST.entdeckt[b.id] ? '<li><b>' + esc(b.n) + ':</b> ' + esc(b.text) + ' <b>+' + b.p + '</b> ' + esc(b.je) + '</li>' : '<li class="leise">??? – noch nicht entdeckt</li>'; }).join('')
+    + '</ul>' + (entdeckt.length < boni.length ? '<p>Tipp: Beantworte die Fragen in der App – auch an Tagen ohne Krafttraining.</p>' : '<p>Alle entdeckt – stark!</p>') + '</details>';
 }
-function oeffnen(){
-  var alt = document.getElementById('ogt-mini'); if (alt) alt.remove();
-  var h = el('div', 'ogt-mini-hinter'); h.id = 'ogt-mini';
-  h.innerHTML = '<div class="ogt-mini-fenster" role="dialog" aria-modal="true" aria-labelledby="ogt-mini-titel">' + fensterHtml() + '</div>';
-  document.body.appendChild(h); sperren();
-  h.addEventListener('click', function(ev){ if (ev.target === h) schliessen(); });
-  var x = h.querySelector('[data-mini="zu"]'); if (x){ try { x.focus({ preventScroll: true }); } catch (e) {} }
+function tabFuellen(st){
+  var platz = document.getElementById('ogt-mini-tab'); if (!platz) return;
+  st = st || stand();
+  var h = '<section class="card ogt-mini-karte ogt-mini-kopfkarte" aria-labelledby="ogt-mini-h">'
+    + '<button type="button" class="ogt-mini-begleiter gross" data-mini="streicheln" aria-label="Katze antippen">' + katzeSvg(meineKatze({ arm: 1 })) + '</button>'
+    + '<p class="eyebrow">Dein Punktestand' + (TEST ? ' · Testplan' : '') + '</p>'
+    + '<p class="ogt-mini-zahl" id="ogt-mini-h"><span aria-hidden="true">⭐</span> ' + zahl(st.konto) + ' <small>Punkte</small></p>'
+    + '<p class="small muted ogt-mini-weiter">Insgesamt gesammelt: ' + zahl(st.verdient) + ' ⭐' + (st.ausgegeben ? ' · ausgegeben: ' + zahl(st.ausgegeben) + ' ⭐' : '') + '</p>'
+    + regelnHtml(st) + '</section>';
+  h += '<section class="card"><p class="eyebrow">Minispiele</p><div class="ogt-mini-liste">' + spielListe().map(function(id){ return spielZeile(id, st); }).join('') + '</div></section>';
+  h += '<section class="card"><p class="eyebrow">Shop</p><p class="small muted ogt-mini-weiter">Antippen zum Kaufen. Gekauftes antippen zum Auswählen.</p>'
+    + '<h3 class="ogt-mini-h3">Feier nach dem Training</h3><div class="ogt-mini-raster">' + FEIERN.map(function(f){ return dingKachel('feier:' + f.id, st); }).join('') + '</div>'
+    + '<h3 class="ogt-mini-h3">Accessoires für die Katze</h3><div class="ogt-mini-raster">' + DEKO.map(function(d){ return dingKachel('deko:' + d.id, st); }).join('') + '</div>'
+    + '<h3 class="ogt-mini-h3">Fellfarbe</h3><div class="ogt-mini-raster">' + Object.keys(FELL).map(function(f){ return dingKachel('fell:' + f, st); }).join('') + '</div></section>';
+  if (TEST) h += '<section class="card"><p class="eyebrow">Nur im Testplan</p><p class="small muted ogt-mini-weiter">Zum Ausprobieren ohne Training. In den echten Plänen gibt es diese Knöpfe nicht.</p>'
+    + '<div class="ogt-mini-reihe"><button type="button" data-mini="test-plus">+100 ⭐</button><button type="button" data-mini="test-null">Testpunkte auf 0</button><button type="button" data-mini="test-alles">Käufe, Boni und Muckibude zurücksetzen</button></div></section>';
+  h += '<p class="ogt-mini-klein ogt-mini-fuss">Punkte, Käufe, Rekorde und Spielstände bleiben auf diesem Handy – sie werden nicht verschickt.</p>';
+  platz.innerHTML = h;
 }
-function neuZeichnen(){
-  var f = document.querySelector('#ogt-mini .ogt-mini-fenster');
-  if (f){ var y = f.scrollTop, offen = !!(f.querySelector('.ogt-mini-regeln') || {}).open; f.innerHTML = fensterHtml(); f.scrollTop = y; if (offen) f.querySelector('.ogt-mini-regeln').open = true; }
-  karteFuellen();
+function neuZeichnen(){ var st = stand(); karteFuellen(st); tabFuellen(st); }
+
+// ===================== Kaufen =====================
+function kaufDialog(kennung){
+  var d = ding(kennung); if (!d) return;
+  var st = stand();
+  if (besitzt(kennung)) return;
+  if (st.konto < d.preis){ hinweis('Noch ' + zahl(d.preis - st.konto) + ' ⭐ – weiter so!'); return; }
+  zuKauf();
+  var box = el('div', 'ogt-mini-kaufen');
+  box.innerHTML = '<div class="ogt-mini-kaufkarte" role="dialog" aria-modal="true" aria-labelledby="ogt-mini-kt"><div class="ogt-mini-bild gross">' + bildFuer(kennung) + '</div>'
+    + '<h2 id="ogt-mini-kt">' + esc(d.n) + '</h2><p>Für <b>' + zahl(d.preis) + ' ⭐</b> kaufen? Du hast ' + zahl(st.konto) + ' ⭐.</p>'
+    + '<div class="ogt-mini-reihe"><button type="button" class="ogt-mini-los" data-mini="kauf-ja" data-k="' + esc(kennung) + '">Kaufen</button><button type="button" data-mini="kauf-nein">Abbrechen</button></div></div>';
+  document.body.appendChild(box); sperren();
+  box.addEventListener('click', function(ev){ if (ev.target === box) zuKauf(); });
+  var b = box.querySelector('[data-mini="kauf-ja"]'); if (b){ try { b.focus({ preventScroll: true }); } catch (e) {} }
 }
-function schliessen(){ var h = document.getElementById('ogt-mini'); if (h) h.remove(); sperren(); }
+function zuKauf(){ var b = document.querySelector('.ogt-mini-kaufen'); if (b) b.remove(); sperren(); }
+function waehlen(kennung){
+  var d = ding(kennung); if (!d || !besitzt(kennung)) return;
+  if (d.art === 'feier'){ ST.feier = d.id; sichern(); neuZeichnen(); feiern(d.id); return; }
+  if (d.art === 'deko'){ ST.deko[d.platz] = ST.deko[d.platz] === d.id ? '' : d.id; sichern(); neuZeichnen(); return; }
+  if (d.art === 'fell'){ ST.fell = d.id; sichern(); neuZeichnen(); }
+}
 
 // ===================== Signale aus der App =====================
 var FERTIG_ZEIT = 0;
 function beiRender(){
-  var st = stand(), p = st.punkte;
-  if (ST.letzte == null) ST.letzte = p;
-  if (p !== ST.letzte){
-    var plus = p - ST.letzte, neu = neuFrei(p);
-    ST.letzte = p; sichern();
+  var st = stand();
+  if (ST.letzte == null) ST.letzte = st.verdient;
+  if (st.verdient !== ST.letzte){
+    var plus = st.verdient - ST.letzte, neu = neueBoni(st.teile);
+    ST.letzte = st.verdient; sichern();
     if (plus > 0 && Date.now() - FERTIG_ZEIT > 2000){
       pop('+' + zahl(plus) + ' ⭐');
-      if (neu.length) hinweis('Neu freigeschaltet: ' + neu.map(function(d){ return d.n; }).join(', '));
+      if (neu.length) hinweis('🎁 Geheimer Bonus entdeckt: ' + neu.map(function(b){ return b.n; }).join(', '));
     }
   }
-  karteFuellen(st);
+  karteFuellen(st); tabFuellen(st);
 }
 function beiFertig(d){
-  var st = stand(), p = st.punkte, x = st.einheiten.filter(function(e){ return e.s === d.s; })[0];
-  var plus = ST.letzte != null ? p - ST.letzte : (x ? einheitPunkte(x) : 0), neu = neuFrei(p), n = naechstes(p);
-  ST.letzte = p; sichern(); FERTIG_ZEIT = Date.now();
+  var st = stand(), plus = ST.letzte != null ? st.verdient - ST.letzte : 0, neu = neueBoni(st.teile), z = naechstesZiel();
+  ST.letzte = st.verdient; sichern(); FERTIG_ZEIT = Date.now();
   setTimeout(function(){
-    feiern(aktiveFeier(p));
+    feiern(aktiveFeier());
     ergebnisKarte('<p class="ogt-mini-e-klein">Einheit gespeichert</p><p class="ogt-mini-e-gross">+' + zahl(Math.max(0, plus)) + ' ⭐</p>'
-      + '<p class="ogt-mini-e-klein">Gesamt: ' + zahl(p) + ' ⭐</p>'
-      + (neu.length ? '<p class="ogt-mini-e-neu">Neu freigeschaltet: ' + neu.map(function(z){ return esc(z.n); }).join(', ') + '</p><button type="button" class="ogt-mini-e-knopf" data-mini="oeffnen">Ansehen</button>'
-        : (n ? '<p class="ogt-mini-e-klein">Noch ' + zahl(n.ab - p) + ' ⭐ bis: ' + esc(n.n) + '</p>' : '')),
+      + '<p class="ogt-mini-e-klein">Kontostand: ' + zahl(st.konto) + ' ⭐</p>'
+      + neu.map(function(b){ return '<p class="ogt-mini-e-neu">🎁 Geheimer Bonus entdeckt: ' + esc(b.n) + ' (+' + b.p + ' ⭐ ' + esc(b.je) + ')</p>'; }).join('')
+      + (z && st.konto >= z.preis ? '<p class="ogt-mini-e-klein">Im Shop kannst du dir jetzt etwas holen.</p><button type="button" class="ogt-mini-e-knopf" data-mini="zum-tab">Zum Shop</button>'
+        : (z ? '<p class="ogt-mini-e-klein">Noch ' + zahl(z.preis - st.konto) + ' ⭐ bis: ' + esc(z.n) + '</p>' : '')),
       neu.length ? 7000 : 5200);
   }, 450);
 }
@@ -851,81 +1232,102 @@ window.addEventListener('ogt-mini', function(ev){
 });
 document.addEventListener('click', function(ev){
   var b = ev.target && ev.target.closest ? ev.target.closest('[data-mini]') : null; if (!b) return;
-  var a = b.getAttribute('data-mini'), id = b.getAttribute('data-id') || '', p, neu;
+  var a = b.getAttribute('data-mini'), k = b.getAttribute('data-k') || '', id = b.getAttribute('data-id') || '';
   switch (a){
-    case 'oeffnen': oeffnen(); break;
-    case 'zu': schliessen(); break;
+    case 'zum-tab':
+      var tab = document.querySelector('[data-act="tab"][data-tab="spiele"]');
+      if (tab) tab.click();
+      break;
+    case 'regeln': REGELN_OFFEN = !REGELN_OFFEN; break;
     case 'spielen': spielStarten(id); break;
     case 'streicheln': streicheln(b); break;
-    case 'feier': ST.feier = id; sichern(); neuZeichnen(); feiern(id); break;
-    case 'deko': ST.deko = id; sichern(); neuZeichnen(); break;
-    case 'gesperrt':
-      var ab = +b.getAttribute('data-ab') || 0; p = stand().punkte;
-      hinweis('Gibt’s ab ' + zahl(ab) + ' ⭐ – noch ' + zahl(Math.max(0, ab - p)) + ' ⭐'); break;
-    case 'test-plus':
-      if (!TEST) break;
-      ST.bonus = (+ST.bonus || 0) + 100; p = stand().punkte; neu = neuFrei(p); ST.letzte = p; sichern(); neuZeichnen();
-      hinweis(neu.length ? 'Neu freigeschaltet: ' + neu.map(function(z){ return z.n; }).join(', ') : '+100 Testpunkte'); break;
-    case 'test-null':
-      if (!TEST) break;
-      ST.bonus = 0; p = stand().punkte;
-      ST.gesehen = alleDinge().filter(function(z){ return p >= z.ab; }).map(function(z){ return z.id; });
-      ST.letzte = p; sichern(); neuZeichnen(); hinweis('Testpunkte zurückgesetzt'); break;
+    case 'kaufen': kaufDialog(k); break;
+    case 'kauf-nein': zuKauf(); break;
+    case 'kauf-ja':
+      var d = ding(k);
+      if (kaufen(k)){
+        zuKauf(); burst(window.innerWidth / 2, window.innerHeight * 0.45); neuZeichnen();
+        hinweis('Gekauft: ' + d.n + (d.art === 'spiel' ? ' – viel Spaß!' : (d.art === 'deko' ? ' – sie trägt es jetzt' : ' – ist jetzt aktiv')));
+        if (d.art === 'feier') setTimeout(function(){ feiern(d.id); }, 300);
+      } else { zuKauf(); hinweis('Das hat nicht geklappt – zu wenig Punkte?'); }
+      break;
+    case 'waehlen': waehlen(k); break;
+    case 'test-plus': if (TEST){ ST.bonus = (+ST.bonus || 0) + 100; ST.letzte = stand().verdient; sichern(); neuZeichnen(); hinweis('+100 Testpunkte'); } break;
+    case 'test-null': if (TEST){ ST.bonus = 0; ST.letzte = stand().verdient; sichern(); neuZeichnen(); hinweis('Testpunkte auf 0'); } break;
+    case 'test-alles':
+      if (TEST){ ST.gekauft = {}; ST.feier = 'konfetti'; ST.deko = { kopf: '', augen: '', hals: '' }; ST.fell = 'orange'; ST.entdeckt = {}; ST.mucki = null;
+        ST.letzte = stand().verdient; sichern(); neuZeichnen(); hinweis('Käufe, Boni und Muckibude zurückgesetzt'); }
+      break;
   }
 });
 document.addEventListener('keydown', function(ev){
   if (ev.key !== 'Escape') return;
   var s = document.querySelector('.ogt-mini-spiel [data-spiel="zu"]');
-  if (s) s.click(); else schliessen();
+  if (s) s.click(); else zuKauf();
 });
 
 // ===================== Aussehen =====================
 var CSS = [
+  '.tabs-in:has(.tab:nth-child(6)) .tab{font-size:11.5px;padding-left:0;padding-right:0}',   // sechs Reiter (mit „Spiele“): Beschriftung passt ganz
   '.ogt-mini-karte{position:relative;gap:8px}',
   '.ogt-mini-karte .ogt-mini-zahl{font-family:var(--font-display);font-weight:800;font-size:34px;line-height:1.05;margin:0}',
   '.ogt-mini-karte .ogt-mini-zahl small{font-size:16px;font-weight:700;color:var(--ink-3)}',
-  '.ogt-mini-karte .ogt-mini-weiter{margin:0}',
+  '.ogt-mini-weiter{margin:0}',
   '.ogt-mini-balken{height:10px;border-radius:999px;background:var(--line-2);overflow:hidden}',
   '.ogt-mini-balken i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#ffb300,#ff6a00)}',
-  '.ogt-mini-begleiter{position:absolute;right:10px;top:6px;width:72px;height:72px;padding:0;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}',
+  '.ogt-mini-begleiter{position:absolute;right:8px;top:4px;width:82px;height:82px;padding:0;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}',
+  '.ogt-mini-begleiter.gross{width:112px;height:112px;top:2px}',
   '.ogt-mini-begleiter svg{width:100%;height:100%;display:block}',
-  '.ogt-mini-sprechblase{position:absolute;right:84px;top:14px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:6px 10px;font-weight:700;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.15);animation:ogtMiniBlase 1.7s ease forwards;pointer-events:none}',
+  '.ogt-mini-kopfkarte{min-height:150px}',
+  '.ogt-mini-kopfkarte .ogt-mini-zahl,.ogt-mini-kopfkarte .eyebrow,.ogt-mini-kopfkarte .ogt-mini-weiter{padding-right:110px}',
+  '.ogt-mini-sprechblase{position:absolute;right:92px;top:10px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:6px 10px;font-weight:700;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.15);animation:ogtMiniBlase 1.7s ease forwards;pointer-events:none;white-space:nowrap}',
+  '.ogt-mini-sprechblase.gross{right:122px;top:18px}',
   '@keyframes ogtMiniBlase{0%{opacity:0;transform:scale(.7)}12%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}',
   '.ogt-mini-testband{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:8px;z-index:45;background:#7c3aed;color:#fff;font:700 12px/1 var(--font-body,system-ui,sans-serif);padding:6px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none}',
   'html.ogt-mini-offen,html.ogt-mini-offen body{overflow:hidden}',
-  '.ogt-mini-hinter{position:fixed;inset:0;z-index:62;background:rgba(8,12,20,.6);display:flex;align-items:flex-end;justify-content:center;padding:12px;box-sizing:border-box}',
-  '@media (min-height:700px){.ogt-mini-hinter{align-items:center}}',
-  '.ogt-mini-fenster{width:100%;max-width:560px;max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);overflow:auto;-webkit-overflow-scrolling:touch;background:var(--panel);color:var(--ink);border-radius:18px;padding:12px 16px 20px;box-sizing:border-box;box-shadow:0 12px 40px rgba(0,0,0,.35);font-family:var(--font-body)}',
-  '.ogt-mini-kopf{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:-12px;background:var(--panel);padding:8px 0;z-index:1}',
-  '.ogt-mini-kopf h2{font-family:var(--font-display);font-size:30px;line-height:1.05;margin:0}',
   '.ogt-mini-x{flex:none;width:42px;height:42px;border-radius:999px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font-size:18px;font-weight:700;cursor:pointer}',
-  '.ogt-mini-fenster h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin:18px 0 8px}',
+  '.ogt-mini-h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin:10px 0 0}',
   '.ogt-mini-klein{font-size:13px;color:var(--ink-3);margin:4px 0 8px}',
-  '.ogt-mini-fuss{margin-top:18px}',
-  '.ogt-mini-regeln{background:var(--panel-2);border-radius:12px;padding:10px 12px;margin-top:4px}',
+  '.ogt-mini-fuss{margin:0 4px}',
+  '.ogt-mini-regeln{background:var(--panel-2);border-radius:12px;padding:10px 12px}',
   '.ogt-mini-regeln summary{font-weight:700;cursor:pointer}',
   '.ogt-mini-regeln ul{margin:8px 0 6px;padding-left:18px;display:grid;gap:3px}',
   '.ogt-mini-regeln p{font-size:13px;color:var(--ink-3);margin:4px 0}',
+  '.ogt-mini-regeln .ogt-mini-geheim-kopf{font-weight:800;color:var(--ink);font-size:14px;margin-top:10px}',
+  '.ogt-mini-regeln .leise{color:var(--ink-3);font-style:italic}',
   '.ogt-mini-liste{display:grid;gap:8px}',
   '.ogt-mini-spielzeile{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:var(--panel-2);border:1px solid var(--line-2)}',
-  '.ogt-mini-spielzeile.zu{opacity:.72}',
   '.ogt-mini-icon{font-size:30px;width:40px;text-align:center;flex:none}',
   '.ogt-mini-text{flex:1;min-width:0;display:grid;gap:2px}',
   '.ogt-mini-text span{font-size:13px;color:var(--ink-2)}',
   '.ogt-mini-text .ogt-mini-rek{color:var(--ok);font-weight:700}',
-  '.ogt-mini-los,.ogt-mini-sperre,.ogt-mini-reihe button{flex:none;font:inherit;font-weight:700;font-size:15px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}',
-  '.ogt-mini-fenster .ogt-mini-los{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}',
-  '.ogt-mini-sperre{color:var(--ink-3)}',
-  '.ogt-mini-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:8px}',
-  '.ogt-mini-ding{display:grid;justify-items:center;align-content:start;gap:4px;padding:10px 6px;border-radius:14px;border:2px solid var(--line-2);background:var(--panel-2);color:var(--ink);font:inherit;cursor:pointer;min-height:112px}',
+  '.ogt-mini-los,.ogt-mini-preis,.ogt-mini-reihe button{flex:none;font:inherit;font-weight:700;font-size:15px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}',
+  '.ogt-mini-los{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}',
+  '.ogt-mini-preis{color:var(--ink-3)}',
+  '.ogt-mini-preis.geht{border-color:#ff9f1c;color:var(--ink);box-shadow:0 0 0 2px rgba(255,159,28,.25)}',
+  '.ogt-mini-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}',
+  '.ogt-mini-ding{position:relative;display:grid;justify-items:center;align-content:start;gap:3px;padding:10px 6px;border-radius:14px;border:2px solid var(--line-2);background:var(--panel-2);color:var(--ink);font:inherit;cursor:pointer;min-height:120px}',
   '.ogt-mini-ding.aktiv{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}',
-  '.ogt-mini-ding.zu .ogt-mini-bild{filter:grayscale(1);opacity:.45}',
-  '.ogt-mini-bild{font-size:34px;line-height:1;height:48px;width:48px;display:grid;place-items:center}',
-  '.ogt-mini-bild svg{width:48px;height:48px;display:block}',
+  '.ogt-mini-ding.geht{border-color:#ffb347}',
+  '.ogt-mini-ding.teuer .ogt-mini-bild{filter:grayscale(.85);opacity:.5}',
+  '.ogt-mini-bild{font-size:34px;line-height:1;height:52px;width:52px;display:grid;place-items:center}',
+  '.ogt-mini-bild svg{width:52px;height:52px;display:block}',
+  '.ogt-mini-bild.gross{width:120px;height:120px;font-size:64px;margin:0 auto}',
+  '.ogt-mini-bild.gross svg{width:120px;height:120px}',
+  '.ogt-mini-zwei{display:flex;align-items:flex-end}',
+  '.ogt-mini-zwei svg{width:30px;height:30px}',
+  '.ogt-mini-bild.gross .ogt-mini-zwei svg{width:64px;height:64px}',
   '.ogt-mini-name{font-weight:700;font-size:13px;text-align:center;line-height:1.2}',
+  '.ogt-mini-platz{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em}',
   '.ogt-mini-ab{font-size:12px;color:var(--ink-3)}',
+  '.ogt-mini-ding.geht .ogt-mini-ab{color:#d97706;font-weight:800}',
   '.ogt-mini-ding.aktiv .ogt-mini-ab{color:var(--accent);font-weight:700}',
   '.ogt-mini-reihe{display:flex;gap:10px;flex-wrap:wrap}',
+  '.ogt-mini-kaufen{position:fixed;inset:0;z-index:68;background:rgba(8,12,20,.6);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}',
+  '.ogt-mini-kaufkarte{width:min(92vw,340px);background:var(--panel);color:var(--ink);border-radius:18px;padding:18px;text-align:center;box-shadow:0 14px 40px rgba(0,0,0,.35);font-family:var(--font-body)}',
+  '.ogt-mini-kaufkarte h2{font-family:var(--font-display);font-size:28px;margin:6px 0}',
+  '.ogt-mini-kaufkarte p{margin:6px 0 12px;color:var(--ink-2)}',
+  '.ogt-mini-kaufkarte .ogt-mini-reihe{justify-content:center}',
   '.ogt-mini-spiel{position:fixed;inset:0;z-index:64;background:#0b1626;color:#fff;display:flex;flex-direction:column;touch-action:manipulation;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);font-family:var(--font-body,system-ui,sans-serif)}',
   '.ogt-mini-hud{display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:15px}',
   '.ogt-mini-hud b{font-family:var(--font-display);font-size:22px;letter-spacing:.02em}',
@@ -940,13 +1342,23 @@ var CSS = [
   '.ogt-mini-tafel .ogt-mini-reihe button{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.3);color:#fff}',
   '.ogt-mini-tafel .ogt-mini-reihe .ogt-mini-los{background:#22c55e;border-color:#22c55e;color:#052e16}',
   '.ogt-mini-tafel .ogt-mini-rekord{font-weight:800;color:#fde047;font-size:18px}',
+  '.ogt-mini-muckipanel{flex:none;max-height:44%;overflow:auto;padding:8px 12px 12px;display:grid;gap:8px;background:#111426}',
+  '.ogt-mini-mucki-info{margin:0;font-size:14px;font-weight:700;color:#fde68a;text-align:center}',
+  '.ogt-mini-mucki-info.leise{color:#aab4c8;font-weight:600;font-size:13px}',
+  '.ogt-mini-upgrade{display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;font:inherit;cursor:pointer}',
+  '.ogt-mini-upgrade b{grid-column:1}',
+  '.ogt-mini-upgrade b small{font-weight:600;color:#aab4c8}',
+  '.ogt-mini-upgrade span{grid-column:1;font-size:13px;color:#cbd5e1}',
+  '.ogt-mini-upgrade em{grid-column:2;grid-row:1 / span 2;align-self:center;font-style:normal;font-weight:800;color:#86efac}',
+  '.ogt-mini-upgrade.zu{opacity:.55}',
+  '.ogt-mini-upgrade.zu em{color:#fca5a5}',
   '.ogt-mini-feier{position:fixed;inset:0;z-index:66;pointer-events:none}',
   '.ogt-mini-feier canvas{width:100%;height:100%;display:block}',
-  '.ogt-mini-katzenfeier{position:fixed;left:50%;bottom:-280px;transform:translateX(-50%);z-index:66;display:grid;justify-items:center;gap:8px;pointer-events:none;transition:bottom .5s cubic-bezier(.2,1.3,.4,1)}',
-  '.ogt-mini-katzenfeier.da{bottom:calc(84px + env(safe-area-inset-bottom,0px))}',
-  '.ogt-mini-katze-gross{pointer-events:auto;width:170px;height:170px;padding:0;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}',
-  '.ogt-mini-katze-gross svg{width:100%;height:100%;display:block;filter:drop-shadow(0 6px 14px rgba(0,0,0,.35))}',
-  '.ogt-mini-sprech{background:#fff;color:#1b1b1b;font:800 18px/1.2 var(--font-body,system-ui,sans-serif);padding:8px 14px;border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.25);position:relative}',
+  '.ogt-mini-katzenfeier{position:fixed;left:50%;bottom:-300px;transform:translateX(-50%);z-index:66;display:grid;justify-items:center;gap:6px;pointer-events:none;transition:bottom .5s cubic-bezier(.2,1.3,.4,1)}',
+  '.ogt-mini-katzenfeier.da{bottom:calc(76px + env(safe-area-inset-bottom,0px))}',
+  '.ogt-mini-katze-gross{pointer-events:auto;width:190px;height:190px;padding:0;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}',
+  '.ogt-mini-katze-gross svg{width:100%;height:100%;display:block;filter:drop-shadow(0 6px 14px rgba(0,0,0,.3))}',
+  '.ogt-mini-sprech{background:#fff;color:#1b1b1b;font:800 19px/1.2 var(--font-body,system-ui,sans-serif);padding:8px 14px;border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.25);position:relative}',
   ".ogt-mini-sprech::after{content:'';position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);border:8px solid transparent;border-top-color:#fff;border-bottom:0}",
   '.ogt-mini-katzenfeier.patsch .ogt-mini-katze-gross{animation:ogtMiniHuepf .5s ease}',
   '@keyframes ogtMiniHuepf{0%{transform:scale(1)}40%{transform:scale(1.12) rotate(-4deg)}100%{transform:scale(1)}}',
@@ -954,8 +1366,9 @@ var CSS = [
   '.ogt-mini-ergebnis.da{opacity:1;transform:translate(-50%,0) scale(1)}',
   '.ogt-mini-e-klein{margin:2px 0;color:var(--ink-3);font-size:14px}',
   '.ogt-mini-e-gross{margin:2px 0;font-family:var(--font-display);font-weight:800;font-size:46px;line-height:1}',
-  '.ogt-mini-e-neu{margin:8px 0 2px;font-weight:800;font-size:17px}',
+  '.ogt-mini-e-neu{margin:8px 0 2px;font-weight:800;font-size:16px}',
   '.ogt-mini-e-knopf{margin-top:10px;font:inherit;font-weight:700;padding:10px 18px;border-radius:12px;border:0;background:var(--accent);color:var(--accent-ink);cursor:pointer}',
+  '.ogt-mini-emoji{font-size:inherit;line-height:1}',
   '.ogt-mini-pop{position:fixed;z-index:67;transform:translate(-50%,0);font:800 20px/1 var(--font-display,system-ui,sans-serif);color:#ff9f1c;text-shadow:0 2px 0 rgba(0,0,0,.25);pointer-events:none;animation:ogtMiniPop .95s ease-out forwards;white-space:nowrap}',
   '@keyframes ogtMiniPop{0%{opacity:0;transform:translate(-50%,0) scale(.6)}18%{opacity:1;transform:translate(-50%,-10px) scale(1.15)}100%{opacity:0;transform:translate(-50%,-58px) scale(1)}}',
   '.ogt-mini-hinweis{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:70;background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;max-width:calc(100% - 32px);text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.25);box-sizing:border-box}',
@@ -967,17 +1380,17 @@ var CSS = [
   var s = document.createElement('style'); s.id = 'ogt-mini-stil'; s.textContent = CSS; document.head.appendChild(s);
   if (TEST){ var band = el('div', 'ogt-mini-testband', 'Testplan · Minigames'); band.setAttribute('aria-hidden', 'true'); document.body.appendChild(band); }
   var st = stand();
-  if (ST.gesehen === null) ST.gesehen = alleDinge().filter(function(d){ return st.punkte >= d.ab; }).map(function(d){ return d.id; });
-  if (ST.letzte == null) ST.letzte = st.punkte;
+  if (ST.letzte == null) ST.letzte = st.verdient;
+  neueBoni(st.teile);   // was schon da ist, gilt still als entdeckt
   var erstesMal = !ST.hallo; ST.hallo = 1;
   sichern();
-  karteFuellen(st);
+  karteFuellen(st); tabFuellen(st);
   if (erstesMal) setTimeout(function(){
-    ergebnisKarte('<p class="ogt-mini-e-neu">Neu: ⭐ Punkte & Minispiele</p><p class="ogt-mini-e-klein">Für jede gespeicherte Einheit gibt’s Punkte. Damit schaltest du Spiele, Feiern und Accessoires frei.</p>'
-      + '<button type="button" class="ogt-mini-e-knopf" data-mini="oeffnen">Anschauen</button>', 9000);
+    ergebnisKarte('<p class="ogt-mini-e-neu">Neu: ⭐ Punkte, Shop & Minispiele</p><p class="ogt-mini-e-klein">Für jede gespeicherte Einheit gibt’s Punkte – und für ein paar geheime Dinge auch. Im Reiter „Spiele“ holst du dir davon Spiele, Feiern und Sachen für deine Katze.</p>'
+      + '<button type="button" class="ogt-mini-e-knopf" data-mini="zum-tab">Anschauen</button>', 9000);
   }, 900);
 })();
-// Für die automatischen Prüfungen (tests/tests_minigame.html): lesender Blick auf den Stand und die Feier von außen
-A.pruefen = { stand: stand, feiern: feiern, oeffnen: oeffnen, schliessen: schliessen, spielStarten: spielStarten, katzeGitter: katzeGitter,
+// Für die automatischen Prüfungen (tests/tests_minigame.html): Blick auf Stand, Shop und Feiern von außen
+A.pruefen = { stand: stand, kaufen: kaufen, besitzt: besitzt, feiern: feiern, spielStarten: spielStarten, katzeSvg: katzeSvg,
   effekt: function(id, W, H){ return EFFEKT[id] ? EFFEKT[id](W, H) : null; }, ST: function(){ return JSON.parse(JSON.stringify(ST)); } };
 })();

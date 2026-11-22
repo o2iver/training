@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version 32238b6404
+/*! O.G. Trainings-App · Grundgerüst · Version 77ff8e5fcd
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -1427,6 +1427,11 @@ function banners(){
 }
 var TABS = [['start', 'Überblick', 'home'], ['plan', 'Plan', 'plan'], ['log', 'Protokoll', 'log'], ['tests', 'Tests', 'gauge'], ['infos', 'Infos', 'info']];
 if (!TESTS.length && !RMT.length) TABS = TABS.filter(function(t){ return t[0] !== 'tests'; });
+// Minigames (Aufgabe 65): eigener Reiter „Spiele“ – nur in Plänen mit MINIGAME, nie in der Coach-Ansicht
+if (MINIGAME && !COACH){
+  TABS.push(['spiele', 'Spiele', 'spiele']);
+  if (!ICON.spiele) ICON.spiele = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 8h9a4.5 4.5 0 0 1 4.4 3.6l.8 4a2.6 2.6 0 0 1-4.6 2.1L15.5 16h-7l-1.6 1.7a2.6 2.6 0 0 1-4.6-2.1l.8-4A4.5 4.5 0 0 1 7.5 8z"/><path d="M8 10.8v3.4M6.3 12.5h3.4"/><circle cx="15.6" cy="11.4" r=".6" fill="currentColor"/><circle cx="17.6" cy="13.4" r=".6" fill="currentColor"/></svg>';
+}
 function tabs(){
   return '<nav class="tabs" aria-label="Bereiche"><div class="tabs-in" role="tablist">' + TABS.map(function(t){
     return '<button type="button" class="tab" role="tab" id="tab-' + t[0] + '" aria-selected="' + (UI.tab === t[0]) + '" data-act="tab" data-tab="' + t[0] + '">' + ICON[t[2]] + '<span>' + t[1] + '</span></button>';
@@ -2464,6 +2469,7 @@ function tabBody(){
     case 'log': return viewLog();
     case 'tests': return viewTests();
     case 'infos': return viewInfo();
+    case 'spiele': return MINIGAME && !COACH ? miniTab() : viewStart();
     default: return viewStart();
   }
 }
@@ -3024,9 +3030,13 @@ function miniPflichtFertig(e, w, s){
 function miniEinheiten(){
   return entriesSorted().filter(function(e){ return e && e.f && SIDS[e.s]; }).map(function(e){
     var ps = parseSid(e.s);
-    return { s: e.s, d: entryDate(e), w: ps.w, erledigt: miniPflichtFertig(e, ps.w, ps.s), morgen: e.o != null };
+    return { s: e.s, d: entryDate(e), w: ps.w, erledigt: miniPflichtFertig(e, ps.w, ps.s), morgen: e.o != null,
+      // für die geheimen Boni (Monitoring): nur ob beantwortet, nie die Werte selbst
+      sa: SA_FELDER.every(function(f){ return e[f[0]] != null; }), hbw: !!e.hbw, hbe: e.hbe != null, notiz: String(e.n || '').trim().length >= 8 };
   });
 }
+function miniSpiele(){ return allSpiele().map(function(x){ return { d: x.d }; }); }   // beantwortete Spiel-Fragen (Handball)
+function miniTab(){ return '<div id="ogt-mini-tab" class="stack" style="gap:14px"><p class="small muted">Die Spiele werden geladen …</p></div>'; }
 function miniWochen(){   // Wochen bis heute, in denen alle Pflicht-Einheiten fertig sind
   var cw = curWeek(), a = []; if (cw == null) return a;
   for (var w = 1; w <= Math.min(cw, LAST_WEEK); w++){ var c = weekCount(w); if (c.tot > 0 && c.done >= c.tot) a.push(w); }
@@ -3034,8 +3044,9 @@ function miniWochen(){   // Wochen bis heute, in denen alle Pflicht-Einheiten fe
 }
 function miniStart(){
   if (!miniAn() || window.OGT_MINI) return;
-  window.OGT_MINI = { cfg: MINIGAME, id: S.id, titel: TITLE, self: !!SELF, heute: todayISO, einheiten: miniEinheiten, wochen: miniWochen, toast: toast };
-  var sc = document.createElement('script'); sc.src = 'spiele.js?v=32238b6404'; sc.async = true;
+  window.OGT_MINI = { cfg: MINIGAME, id: S.id, titel: TITLE, self: !!SELF, heute: todayISO, einheiten: miniEinheiten, wochen: miniWochen, toast: toast,
+    spiele: miniSpiele, hat: { hb: !!HB_FRAGE }, ther: therShort() || 'deinen Coach' };
+  var sc = document.createElement('script'); sc.src = 'spiele.js?v=77ff8e5fcd'; sc.async = true;
   document.body.appendChild(sc);
 }
 
@@ -3056,7 +3067,7 @@ function start(hot){
   themaAnwenden();
   var st = (hot && hot.ui) || ssGet('fk-ui', null);
   if (st && typeof st === 'object'){
-    if (st.tab) UI.tab = st.tab;
+    if (st.tab && TABS.some(function(t){ return t[0] === st.tab; })) UI.tab = st.tab;   // z. B. „Spiele“ gibt es nur in Minigame-Plänen
     if (st.sess && SIDS[st.sess]) UI.sess = st.sess;
     if (st.back && SIDS[st.back]) UI.backSess = st.back;
     if (st.week) UI.week = st.week;
