@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Minigames (Test, Aufgabe 65) · Version d7f68f9cd2
+/*! O.G. Trainings-App · Minigames (Test, Aufgabe 65) · Version 55e93a8358
  * Lädt nur, wenn ein Plan MINIGAME hat (miniStart in app_template.js) – die echten Pläne laden diese Datei nicht.
  * Punkte (⭐) gibt es nur fürs Training und fürs Eintragen: gespeicherte Einheit, Pflicht-Übungen mit mindestens einem
  * Satz, Morgen-Check, ganze Woche – dazu geheime Boni fürs Monitoring (Kurz-Check, Handball, Spieltag, Notiz,

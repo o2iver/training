@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version d7f68f9cd2
+/*! O.G. Trainings-App · Grundgerüst · Version 55e93a8358
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -582,8 +582,11 @@ function curWeek(){ return weekOf(todayISO()); }
 function weekStart(w){ return addDays(startISO(), (w - 1) * 7); }
 function weekEnd(w){ return addDays(weekStart(w), 6); }
 function weekRange(w){ return fmtShort(weekStart(w)) + '–' + fmtShort(weekEnd(w)); }
+// Eigene Reihenfolge für einzelne Wochen: WEEKS[w].tage = { C: 1, B: 3, A: 5 } (Wochentag je Einheit, 0 = Sonntag),
+// z. B. nach drei Spielen in acht Tagen erst erholen, dann testen (Spielpause, Olli 22.11.2026). Ohne Angabe gilt SESS[s].day.
+function tagFuer(w, s){ var t = WEEKS[w] && WEEKS[w].tage; return t && t[s] != null ? t[s] : (SESS[s] ? SESS[s].day : 1); }
 function planDate0(w, s){
-  var ws = weekStart(w), want = SESS[s] ? SESS[s].day : 1;
+  var ws = weekStart(w), want = tagFuer(w, s);
   for (var i = 0; i < 7; i++){ var d = addDays(ws, i); if (wdOf(d) === want) return d; }
   return ws;
 }
@@ -604,7 +607,10 @@ function gamesInWeek(w){ var a = []; for (var i = 0; i < 7; i++){ var d = addDay
 function nextGameFrom(iso, max){ for (var i = 0; i <= max; i++){ var d = addDays(iso, i); if (GAME_BY_DATE[d]) return { d: d, t: GAME_BY_DATE[d].t, h: GAME_BY_DATE[d].h ? 1 : 0, inDays: i }; } return null; }
 function gameText(g){ return fmtWd(g.d) + ' · ' + g.t; }
 function sessOff(w, s){ if (OFF[w] && OFF[w][s]) return true; var pd = planDate(w, s); return !!gameOn(pd) && pd !== gdayOf(w, s); }
-function weekSess(w){ var ph = phaseOfWeek(w); if (!ph) return []; return ph.sess.filter(function(s){ return !sessOff(w, s); }); }
+function sessReihe(w, liste){   // Wochen mit eigener Reihenfolge: Einheiten nach Datum sortiert (sonst wie im Plan)
+  return WEEKS[w] && WEEKS[w].tage ? liste.slice().sort(function(a, b){ var x = planDate(w, a), y = planDate(w, b); return x < y ? -1 : (x > y ? 1 : 0); }) : liste;
+}
+function weekSess(w){ var ph = phaseOfWeek(w); if (!ph) return []; return sessReihe(w, ph.sess.filter(function(s){ return !sessOff(w, s); })); }
 function plannedSoFar(){
   var w = curWeek(), n = 0, log = L(); if (w == null || w < 1) return 0;
   for (var k = Math.max(1, weekOf(LOG_FROM) || 1); k <= Math.min(w, LAST_WEEK); k++){
@@ -1897,7 +1903,7 @@ function weekPicker(sel){
 }
 function weekCard(w){
   var ph = phaseOfWeek(w), wk = WEEKS[w], log = L(), n = nextSession();
-  var list = ph.sess.map(function(s){
+  var list = sessReihe(w, ph.sess).map(function(s){
     var id = sidOf(w, s), st = sessStatus(w, s, log), m = SESS[s], e = log[id];
     var isNext = n && n.w === w && n.s === s;
     var meta = st === 'off' ? 'entfällt – ' + (OFF[w] && OFF[w][s] ? OFF[w][s] : 'am ' + fmtWd(planDate(w, s)) + ' ist Spiel') : (st === 'done' ? 'erledigt' + (e && e.d ? ' am ' + fmtWd(e.d) : '') + (e && e.e != null ? ' · Anstrengung ' + e.e : '') : (st === 'part' ? 'begonnen' : 'geplant ' + fmtWd(planDate(w, s)) + (planDate(w, s) === gdayOf(w, s) ? ' morgens · Heimspiel' : '') + ' · ca. ' + m.min + ' min'));
@@ -3056,7 +3062,7 @@ function miniStart(){
   if (!miniAn() || window.OGT_MINI) return;
   window.OGT_MINI = { cfg: MINIGAME, id: S.id, titel: TITLE, self: !!SELF, heute: todayISO, einheiten: miniEinheiten, wochen: miniWochen, toast: toast,
     spiele: miniSpiele, hat: { hb: !!HB_FRAGE }, ther: therShort() || 'deinen Coach', sitzung: miniSitzung };
-  var sc = document.createElement('script'); sc.src = 'spiele.js?v=d7f68f9cd2'; sc.async = true;
+  var sc = document.createElement('script'); sc.src = 'spiele.js?v=55e93a8358'; sc.async = true;
   document.body.appendChild(sc);
 }
 
