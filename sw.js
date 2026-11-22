@@ -1,8 +1,8 @@
-/* O.G. Trainings-App · Offline-Speicher · Version 8be93c7ac3
+/* O.G. Trainings-App · Offline-Speicher · Version d7f68f9cd2
    App-Dateien kommen aus dem Speicher (schnell, auch ohne Netz). Pläne kommen zuerst aus dem
    Netz, damit Änderungen ankommen; ohne Netz gilt der zuletzt geladene Stand. */
 'use strict';
-var VERSION = '8be93c7ac3';
+var VERSION = 'd7f68f9cd2';
 var APP_CACHE = 'ogt-app-' + VERSION;
 var PLAN_CACHE = 'ogt-plaene';
 var APP_DATEIEN = ['./', './index.html', './app.css', './app.js', './spiele.js', './manifest.webmanifest',
