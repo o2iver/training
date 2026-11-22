@@ -1,9 +1,9 @@
-/*! O.G. Trainings-App · Minigames (Test, Aufgabe 65) · Version cbb5c7f782
+/*! O.G. Trainings-App · Minigames (Test, Aufgabe 65) · Version 8be93c7ac3
  * Lädt nur, wenn ein Plan MINIGAME hat (miniStart in app_template.js) – die echten Pläne laden diese Datei nicht.
  * Punkte (⭐) gibt es nur fürs Training und fürs Eintragen: gespeicherte Einheit, Pflicht-Übungen mit mindestens einem
  * Satz, Morgen-Check, ganze Woche – dazu geheime Boni fürs Monitoring (Kurz-Check, Handball, Spieltag, Notiz,
  * Dranbleiben). Nie für mehr Gewicht, mehr Sätze, Optionales oder Extra-Training (Belastungsmanagement).
- * Mit den Punkten kauft man im Shop: Minispiele, Feiern, Begleiter-Tiere, Accessoires und Fellfarben für die Katze.
+ * Mit den Punkten kauft man im Shop: Minispiele, Feiern, Begleiter-Tiere, Fellfarben, Accessoires, Namen und Sprüche.
  * Punkte, Käufe, Rekorde und Spielstände bleiben auf dem Gerät (ogt:mini:<kennung>) und gehen nicht mit der Rückmeldung raus.
  * Figuren, Spiele und Effekte sind eigene Entwürfe. Quelle: app/spiele.js (build.py setzt die Version). */
 (function(){
@@ -32,6 +32,7 @@ if (!ST.gekauft || typeof ST.gekauft !== 'object') ST.gekauft = {};
 if (!ST.deko || typeof ST.deko !== 'object') ST.deko = { kopf: '', augen: '', hals: '' };
 if (!ST.rekord || typeof ST.rekord !== 'object') ST.rekord = {};
 if (!ST.entdeckt || typeof ST.entdeckt !== 'object') ST.entdeckt = {};
+if (!ST.namen || typeof ST.namen !== 'object') ST.namen = {};
 function sichern(){ try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) {} }
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 function zahl(n){ return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
@@ -71,7 +72,7 @@ function verdienst(){
   if (TEST) summe += Math.max(0, +ST.bonus || 0);
   return { summe: summe, teile: t, einheiten: es };
 }
-function ausgegeben(){ var s = 0; Object.keys(ST.gekauft).forEach(function(k){ s += Math.max(0, +ST.gekauft[k] || 0); }); return s; }
+function ausgegeben(){ var s = Math.max(0, +ST.namensKosten || 0); Object.keys(ST.gekauft).forEach(function(k){ s += Math.max(0, +ST.gekauft[k] || 0); }); return s; }
 function stand(){ var v = verdienst(), a = ausgegeben(); return { verdient: v.summe, ausgegeben: a, konto: Math.max(0, v.summe - a), teile: v.teile, einheiten: v.einheiten }; }
 function neueBoni(teile){
   var neu = [];
@@ -98,7 +99,7 @@ var FEIERN = [
   { id: 'herzen', n: 'Herzchen', icon: '💖', preis: 30 },
   { id: 'feuerwerk', n: 'Feuerwerk', icon: '🎆', preis: 40 },
   { id: 'sterne', n: 'Sternschnuppen', icon: '🌠', preis: 50 },
-  { id: 'katze', n: 'Katze: „Let’s Miau!“', icon: 'katze', preis: 60 },
+  { id: 'katze', n: 'Abklatschen: „Let’s Miau!“', icon: 'katze', preis: 60 },
   { id: 'baelle', n: 'Handball-Regen', icon: 'ball', preis: 80 },
   { id: 'regenbogen', n: 'Regenbogen', icon: '🌈', preis: 90 },
   { id: 'parade', n: 'Katzen-Parade', icon: 'katzen', preis: 100 },
@@ -114,9 +115,12 @@ var DEKO = [
   { id: 'krone', n: 'Krone', platz: 'kopf', preis: 150 }
 ];
 var PLATZ = { kopf: 'Kopf', augen: 'Augen', hals: 'Hals' };
+var NAME_PREIS = 25;   // Name für den Begleiter: der erste ist gratis, Umbenennen kostet (Olli 22.11.2026)
+var FRECH_PREIS = 50;  // „Sprüche ohne Filter“ – nur in Plänen mit MINIGAME.fluchen
+// Fellfarben – seit 22.11.2026 für alle Tiere (Olli). „Original“ = die eigenen Farben des Tiers, bei der Katze Orange.
 var FELL = {
-  orange: { n: 'Orange', preis: 0, fell: '#f7a541', streifen: '#e07b28', creme: '#fff4e4', linie: '#3b2618' },
-  grau: { n: 'Grau getigert', preis: 40, fell: '#a9b1bb', streifen: '#7b8591', creme: '#f5f7fa', linie: '#2c3138' },
+  orange: { n: 'Original', preis: 0, fell: '#f7a541', streifen: '#e07b28', creme: '#fff4e4', linie: '#3b2618' },
+  grau: { n: 'Grau', preis: 40, fell: '#a9b1bb', streifen: '#7b8591', creme: '#f5f7fa', linie: '#2c3138' },
   schoko: { n: 'Schoko', preis: 50, fell: '#9a6544', streifen: '#71472e', creme: '#f6e6d6', linie: '#2a1a10' },
   weiss: { n: 'Schneeweiß', preis: 60, fell: '#fbfbff', streifen: '#e2e2ee', creme: '#ffffff', linie: '#4a4a5c' },
   schwarz: { n: 'Nachtschwarz', preis: 60, fell: '#3d3d49', streifen: '#2b2b35', creme: '#e9e9f3', linie: '#141419' },
@@ -147,7 +151,7 @@ var TIERE = {
     maehne: ['#ff9bd0', '#b89cff', '#8fd3ff', '#9af0c8'] }
 };
 function spielListe(){ return (Array.isArray(CFG.spiele) ? CFG.spiele : []).filter(function(id){ return SPIELE[id]; }); }
-// Kennung im Shop: spiel:<id>, feier:<id>, deko:<id>, fell:<id>, tier:<id>
+// Kennung im Shop: spiel:<id>, feier:<id>, deko:<id>, fell:<id>, tier:<id>, spruch:frech
 function ding(kennung){
   var t = String(kennung).split(':'), art = t[0], id = t[1], x;
   if (art === 'spiel' && SPIELE[id] && spielListe().indexOf(id) >= 0) return { art: art, id: id, n: SPIELE[id].n, preis: SPIELE[id].preis };
@@ -155,6 +159,7 @@ function ding(kennung){
   if (art === 'deko'){ x = DEKO.filter(function(f){ return f.id === id; })[0]; if (x) return { art: art, id: id, n: x.n, preis: x.preis, platz: x.platz }; }
   if (art === 'fell' && FELL[id]) return { art: art, id: id, n: FELL[id].n, preis: FELL[id].preis };
   if (art === 'tier' && TIERE[id]) return { art: art, id: id, n: TIERE[id].n, preis: TIERE[id].preis };
+  if (art === 'spruch' && id === 'frech' && CFG.fluchen) return { art: art, id: id, n: 'Sprüche ohne Filter', preis: FRECH_PREIS };
   return null;
 }
 function besitzt(kennung){ var d = ding(kennung); return !!d && (d.preis === 0 || ST.gekauft[kennung] != null); }
@@ -164,8 +169,9 @@ function kaufen(kennung){
   ST.gekauft[kennung] = d.preis;
   if (d.art === 'feier') ST.feier = d.id;
   if (d.art === 'deko') ST.deko[d.platz] = d.id;
-  if (d.art === 'fell') ST.fell = d.id;
-  if (d.art === 'tier') ST.tier = d.id;
+  if (d.art === 'fell'){ if (SLOT === 'partner') ST.partnerFell = d.id; else ST.fell = d.id; }
+  if (d.art === 'tier'){ if (SLOT === 'partner') ST.partner = d.id; else ST.tier = d.id; }
+  if (d.art === 'spruch') ST.frech = 1;
   sichern();
   return true;
 }
@@ -173,6 +179,25 @@ function aktiveFeier(){ return besitzt('feier:' + ST.feier) ? ST.feier : 'konfet
 function meineDeko(){ var o = {}; Object.keys(PLATZ).forEach(function(p){ var id = ST.deko[p]; o[p] = id && besitzt('deko:' + id) ? id : ''; }); return o; }
 function meinFell(){ return besitzt('fell:' + ST.fell) ? ST.fell : 'orange'; }
 function meinTier(){ return besitzt('tier:' + ST.tier) ? ST.tier : 'katze'; }
+// Abklatsch-Partner (Olli 22.11.2026): kommt nach dem Speichern zum Abklatschen – eigenes Tier und eigene Fellfarbe
+function meinPartner(){ return besitzt('tier:' + ST.partner) ? ST.partner : 'katze'; }
+function partnerFell(){ return ST.partnerFell && besitzt('fell:' + ST.partnerFell) ? ST.partnerFell : 'orange'; }
+function partnerBild(extra){
+  var o = { tier: meinPartner(), fell: partnerFell() };
+  if (o.tier === meinTier() && o.fell === meinFell()) o.fell = o.fell === 'grau' ? 'orange' : 'grau';   // nie zwei gleiche nebeneinander
+  Object.keys(extra || {}).forEach(function(k){ o[k] = extra[k]; });
+  return o;
+}
+// Was der Shop gerade einstellt: Trainingsbegleiter (haupt) oder Abklatsch-Partner (partner) – Tierwahl und Fellfarbe gelten dafür
+var SLOT = 'haupt';
+function slotTier(){ return SLOT === 'partner' ? meinPartner() : meinTier(); }
+function slotFell(){ return SLOT === 'partner' ? partnerFell() : meinFell(); }
+// Namen: je Tier, der erste ist gratis
+function tierName(t){ var n = ST.namen && ST.namen[t]; return n ? String(n) : ''; }
+function meinName(){ return tierName(meinTier()); }
+// Spitzname aus dem Plan (MINIGAME.spitzname): der Begleiter spricht damit zwischendurch an
+function spitzname(){ return String(CFG.spitzname || '').replace(/\s+/g, ' ').trim().slice(0, 20); }
+function frech(){ return !!CFG.fluchen && besitzt('spruch:frech') && ST.frech === 1; }
 function meineKatze(extra){ var o = { tier: meinTier(), deko: meineDeko(), fell: meinFell() }; Object.keys(extra || {}).forEach(function(k){ o[k] = extra[k]; }); return o; }
 // günstigstes Ding, das man noch nicht hat (für „Als Nächstes“)
 function naechstesZiel(){
@@ -182,20 +207,26 @@ function naechstesZiel(){
   DEKO.forEach(function(d){ alle.push('deko:' + d.id); });
   Object.keys(FELL).forEach(function(f){ alle.push('fell:' + f); });
   Object.keys(TIERE).forEach(function(t){ alle.push('tier:' + t); });
+  if (CFG.fluchen) alle.push('spruch:frech');
   var offen = alle.filter(function(k){ return !besitzt(k); }).map(ding).filter(Boolean).sort(function(a, b){ return a.preis - b.preis; });
   return offen[0] || null;
 }
 
 // ===================== Die Begleiter (gezeichnet, eigene Entwürfe, 120 × 120, gleicher Kopf für Accessoires) =====================
+// Fellfarbe auf jedes Tier (Olli 22.11.2026): ersetzt Fell, dunkle und helle Stellen und den Umriss. Die Kennzeichen bleiben
+// (Panda-Flecken, Waschbär-Maske, Tiger-Streifen, Fuchs-Ohrspitzen, Pinguin-Gesicht, Einhorn-Mähne); beim Igel färbt sie die Stacheln.
+var UMFAERBEN = { panda: ['fell', 'creme'], waschbaer: ['fell'], tiger: ['fell'], fuchs: ['fell', 'linie'], pinguin: ['fell', 'dunkel', 'linie'], einhorn: ['fell', 'creme'], igel: ['dunkel'] };
 function tierFarben(opt){
   var t = opt && TIERE[opt.tier] ? opt.tier : 'katze';
   if (t === 'katze'){
     var f = FELL[opt && opt.fell] || FELL.orange;
     return { tier: t, fell: f.fell, kopf: f.fell, streifen: f.streifen, creme: f.creme, linie: f.linie, dunkel: f.streifen, nase: '#ff7fa0', pfote: f.creme, hand: f.creme, ohr: '#ffadc4', vogel: false };
   }
-  var T = TIERE[t], pfote = T.pfote || (t === 'panda' ? T.dunkel : T.creme);
-  return { tier: t, fell: T.fell, kopf: T.kopf || T.fell, streifen: T.dunkel, creme: T.creme, linie: T.linie, dunkel: T.dunkel, nase: T.nase, pfote: pfote,
-    hand: T.vogel ? (t === 'eule' ? T.dunkel : T.fell) : pfote, ohr: '#ffb3c7', vogel: !!T.vogel };
+  var T = TIERE[t], c = { fell: T.fell, dunkel: T.dunkel, creme: T.creme, linie: T.linie }, ff = opt && opt.fell !== 'orange' ? FELL[opt.fell] : null;
+  if (ff){ var neu = { fell: ff.fell, dunkel: ff.streifen, creme: ff.creme, linie: ff.linie }; (UMFAERBEN[t] || ['fell', 'dunkel', 'creme', 'linie']).forEach(function(k){ c[k] = neu[k]; }); }
+  var pfote = T.pfote || (t === 'panda' ? c.dunkel : c.creme);
+  return { tier: t, fell: c.fell, kopf: T.kopf || c.fell, streifen: c.dunkel, creme: c.creme, linie: c.linie, dunkel: c.dunkel, nase: T.nase, pfote: pfote,
+    hand: T.vogel ? (t === 'eule' ? c.dunkel : c.fell) : pfote, ohr: '#ffb3c7', vogel: !!T.vogel };
 }
 function katzeSvg(opt){
   opt = opt || {};
@@ -1212,18 +1243,18 @@ EFFEKT.parade = function(W, H){
   } };
 };
 
-// ===================== Feier mit der Katze und Auswahl der Feier =====================
+// ===================== Feier „Abklatschen“ (mit dem Abklatsch-Partner) und Auswahl der Feier =====================
 function katzeFeier(){
   var alt = document.querySelector('.ogt-mini-katzenfeier'); if (alt) alt.remove();
   var box = el('div', 'ogt-mini-katzenfeier');
-  box.innerHTML = '<div class="ogt-mini-sprech">Let’s Miau!</div><button type="button" class="ogt-mini-katze-gross" aria-label="Katze abklatschen">' + katzeSvg({ tier: 'katze', arm: 1, deko: meineDeko(), fell: meinFell() }) + '</button>';
+  box.innerHTML = '<div class="ogt-mini-sprech">' + (meinPartner() === 'katze' ? 'Let’s Miau!' : 'High Five!') + '</div><button type="button" class="ogt-mini-katze-gross" aria-label="Abklatschen">' + katzeSvg(partnerBild({ arm: 1 })) + '</button>';
   document.body.appendChild(box);
   requestAnimationFrame(function(){ requestAnimationFrame(function(){ box.classList.add('da'); }); });
   var knopf = box.querySelector('button'), sprech = box.querySelector('.ogt-mini-sprech'), fertig = false, zeit = setTimeout(weg, 4500);
   knopf.addEventListener('pointerdown', function(ev){
     if (ev.cancelable) ev.preventDefault();
     if (fertig) return; fertig = true;
-    knopf.innerHTML = katzeSvg({ tier: 'katze', arm: 1, gesicht: 'froh', deko: meineDeko(), fell: meinFell() });
+    knopf.innerHTML = katzeSvg(partnerBild({ arm: 1, gesicht: 'froh' }));
     sprech.textContent = 'Patsch! 🙌'; box.classList.add('patsch');
     burst(ev.clientX, ev.clientY);
     clearTimeout(zeit); zeit = setTimeout(weg, 1500);
@@ -1268,7 +1299,7 @@ function ergebnisKarte(html, dauer){
 
 // ===================== Startseite: Punkte-Karte =====================
 var SPRUECHE = ['Let’s Miau!', 'Auf!', 'Miau!', 'Lass knacken!', 'Schnurr …', 'Gut gemacht!', '*blinzel*'];
-function sprueche(){ var t = meinTier(); return t === 'katze' ? SPRUECHE : [TIERE[t].ruf, 'Auf!', 'Lass knacken!', 'Gut gemacht!', '*blinzel*', 'Hehe!']; }
+function sprueche(){ var t = meinTier(), l = t === 'katze' ? SPRUECHE : [TIERE[t].ruf, 'Auf!', 'Lass knacken!', 'Gut gemacht!', '*blinzel*', 'Hehe!']; return frech() ? l.concat(FRECH) : l; }
 function karteFuellen(st){
   var platz = document.getElementById('ogt-mini-platz'); if (!platz) return;
   st = st || stand();
@@ -1302,29 +1333,32 @@ function bildFuer(kennung){
   if (d.art === 'spiel') return '<span class="ogt-mini-emoji">' + SPIELE[d.id].icon + '</span>';
   if (d.art === 'feier'){
     var f = FEIERN.filter(function(x){ return x.id === d.id; })[0];
-    return f.icon === 'katze' ? katzeSvg({ tier: 'katze', arm: 1, deko: meineDeko(), fell: meinFell() }) : (f.icon === 'ball' ? ballSvg() : (f.icon === 'katzen' ? katzenSvg() : '<span class="ogt-mini-emoji">' + f.icon + '</span>'));
+    return f.icon === 'katze' ? katzeSvg(partnerBild({ arm: 1 })) : (f.icon === 'ball' ? ballSvg() : (f.icon === 'katzen' ? katzenSvg() : '<span class="ogt-mini-emoji">' + f.icon + '</span>'));
   }
   if (d.art === 'deko'){ var o = {}; o[d.platz] = d.id; return katzeSvg({ tier: meinTier(), deko: o, fell: meinFell() }); }
-  if (d.art === 'tier') return katzeSvg({ tier: d.id, fell: meinFell() });
-  return katzeSvg({ tier: 'katze', fell: d.id });
+  if (d.art === 'tier') return katzeSvg({ tier: d.id });
+  if (d.art === 'spruch') return '<span class="ogt-mini-emoji">🤬</span>';
+  return katzeSvg({ tier: slotTier(), fell: d.id });
 }
 function aktiv(kennung){
   var d = ding(kennung); if (!d || !besitzt(kennung)) return false;
   if (d.art === 'feier') return aktiveFeier() === d.id;
   if (d.art === 'deko') return meineDeko()[d.platz] === d.id;
-  if (d.art === 'fell') return meinFell() === d.id;
-  if (d.art === 'tier') return meinTier() === d.id;
+  if (d.art === 'fell') return slotFell() === d.id;
+  if (d.art === 'tier') return slotTier() === d.id;
+  if (d.art === 'spruch') return frech();
   return false;
 }
 function dingKachel(kennung, st){
   var d = ding(kennung); if (!d) return '';
   var hat = besitzt(kennung), an = aktiv(kennung), geht = !hat && st.konto >= d.preis, zeile;
-  if (an) zeile = d.art === 'deko' ? '✓ an' : (d.art === 'tier' ? '✓ dabei' : '✓ aktiv');
-  else if (hat) zeile = d.art === 'deko' ? 'anziehen' : (d.art === 'tier' ? 'mitnehmen' : 'auswählen');
+  var partner = d.art === 'tier' && SLOT === 'partner';
+  if (an) zeile = d.art === 'deko' || d.art === 'spruch' ? '✓ an' : (d.art === 'tier' ? (partner ? '✓ Partner' : '✓ dabei') : '✓ aktiv');
+  else if (hat) zeile = d.art === 'deko' ? 'anziehen' : (d.art === 'spruch' ? 'anschalten' : (d.art === 'tier' ? (partner ? 'als Partner' : 'mitnehmen') : 'auswählen'));
   else zeile = '⭐ ' + zahl(d.preis);
   return '<button type="button" class="ogt-mini-ding' + (an ? ' aktiv' : '') + (hat ? ' hat' : (geht ? ' geht' : ' teuer')) + '" data-mini="' + (hat ? 'waehlen' : 'kaufen') + '" data-k="' + esc(kennung) + '" aria-pressed="' + (an ? 'true' : 'false') + '">'
     + '<span class="ogt-mini-bild">' + bildFuer(kennung) + '</span><span class="ogt-mini-name">' + esc(d.n) + '</span>'
-    + (d.art === 'deko' ? '<span class="ogt-mini-platz">' + PLATZ[d.platz] + '</span>' : '')
+    + (d.art === 'deko' ? '<span class="ogt-mini-platz">' + PLATZ[d.platz] + '</span>' : (d.art === 'tier' && tierName(d.id) ? '<span class="ogt-mini-tiername">„' + esc(tierName(d.id)) + '“</span>' : ''))
     + '<span class="ogt-mini-ab">' + zeile + '</span></button>';
 }
 function spielZeile(id, st){
@@ -1355,18 +1389,31 @@ function tabFuellen(st){
     + '<p class="ogt-mini-zahl" id="ogt-mini-h"><span aria-hidden="true">⭐</span> ' + zahl(st.konto) + ' <small>Punkte</small></p>'
     + '<p class="small muted ogt-mini-weiter">Insgesamt gesammelt: ' + zahl(st.verdient) + ' ⭐' + (st.ausgegeben ? ' · ausgegeben: ' + zahl(st.ausgegeben) + ' ⭐' : '') + '</p>'
     + regelnHtml(st) + '</section>';
-  h += '<section class="card"><p class="eyebrow">Dein Begleiter im Training</p><p class="small muted ogt-mini-weiter">' + esc(TIERE[meinTier()].n)
-    + ' läuft in deinen Einheiten unten mit, feiert jeden Satz und sagt dir die nächste Übung mit dem „Achte auf“-Hinweis aus deinem Plan. Am Ende gibt’s ein High Five. Tippen geht durch ihn hindurch – er stört nie beim Abhaken.</p>'
+  var mt = meinTier(), nm = meinName(), sn = spitzname(), pt = meinPartner();
+  h += '<section class="card"><p class="eyebrow">Dein Begleiter im Training</p>'
+    + '<p class="ogt-mini-bgname"><b>' + esc(nm || TIERE[mt].n) + '</b>' + (nm ? ' <span>(' + esc(TIERE[mt].n) + ')</span>' : '') + '</p>'
+    + '<p class="small muted ogt-mini-weiter">' + esc(nm || TIERE[mt].n)
+    + ' läuft in deinen Einheiten unten mit, feiert jeden Satz und sagt dir die nächste Übung mit dem „Achte auf“-Hinweis aus deinem Plan.'
+    + (sn ? ' Zwischendurch spricht ' + esc(nm || 'dein Begleiter') + ' dich mit „' + esc(sn) + '“ an.' : '')
+    + ' Nach dem Speichern kommt ' + (tierName(pt) ? esc(tierName(pt)) : 'dein Abklatsch-Partner (' + esc(TIERE[pt].n) + ')') + ' zum Abklatschen. Tippen geht einfach hindurch, beim Abhaken stört nichts.</p>'
     + '<div class="ogt-mini-reihe"><button type="button" class="' + (begleiterAn() ? 'ogt-mini-los' : '') + '" data-mini="begleiter-umschalten" aria-pressed="' + (begleiterAn() ? 'true' : 'false') + '">'
-    + (begleiterAn() ? '✓ Läuft im Training mit' : 'Im Training mitlaufen lassen') + '</button></div></section>';
+    + (begleiterAn() ? '✓ Läuft im Training mit' : 'Im Training mitlaufen lassen') + '</button>'
+    + '<button type="button" data-mini="name">' + (nm ? 'Umbenennen · ' + NAME_PREIS + ' ⭐' : 'Namen geben (gratis)') + '</button></div></section>';
   h += '<section class="card"><p class="eyebrow">Minispiele</p><div class="ogt-mini-liste">' + spielListe().map(function(id){ return spielZeile(id, st); }).join('') + '</div></section>';
-  h += '<section class="card"><p class="eyebrow">Shop</p><p class="small muted ogt-mini-weiter">Antippen zum Kaufen. Gekauftes antippen zum Auswählen.</p>'
-    + '<h3 class="ogt-mini-h3">Begleiter</h3><div class="ogt-mini-raster">' + Object.keys(TIERE).map(function(t){ return dingKachel('tier:' + t, st); }).join('') + '</div>'
+  var pm = SLOT === 'partner', zt = slotTier();
+  h += '<section class="card" id="ogt-mini-shop"><p class="eyebrow">Shop</p><p class="small muted ogt-mini-weiter">Antippen zum Kaufen. Gekauftes antippen zum Auswählen.</p>'
+    + '<h3 class="ogt-mini-h3">Begleiter</h3>'
+    + '<div class="ogt-mini-slots" role="group" aria-label="Was stellst du ein?"><button type="button" data-mini="slot" data-id="haupt" aria-pressed="' + !pm + '">🏃 Im Training</button>'
+    + '<button type="button" data-mini="slot" data-id="partner" aria-pressed="' + pm + '">🙌 Zum Abklatschen</button></div>'
+    + '<p class="small muted ogt-mini-weiter">' + (pm ? 'Kommt nach dem Speichern zum Abklatschen: <b>' + esc(tierName(zt) || TIERE[zt].n) + '</b>. Tier und Fellfarbe gelten jetzt für deinen Abklatsch-Partner.'
+      : 'Läuft im Training mit: <b>' + esc(tierName(zt) || TIERE[zt].n) + '</b>. Tier und Fellfarbe gelten jetzt für deinen Trainingsbegleiter.') + '</p>'
+    + '<div class="ogt-mini-raster">' + Object.keys(TIERE).map(function(t){ return dingKachel('tier:' + t, st); }).join('') + '</div>'
+    + '<h3 class="ogt-mini-h3">Fellfarbe für ' + (pm ? 'deinen Abklatsch-Partner' : 'deinen Trainingsbegleiter') + '</h3><div class="ogt-mini-raster">' + Object.keys(FELL).map(function(f){ return dingKachel('fell:' + f, st); }).join('') + '</div>'
     + '<h3 class="ogt-mini-h3">Feier nach dem Training</h3><div class="ogt-mini-raster">' + FEIERN.map(function(f){ return dingKachel('feier:' + f.id, st); }).join('') + '</div>'
-    + '<h3 class="ogt-mini-h3">Accessoires für deinen Begleiter</h3><div class="ogt-mini-raster">' + DEKO.map(function(d){ return dingKachel('deko:' + d.id, st); }).join('') + '</div>'
-    + '<h3 class="ogt-mini-h3">Fellfarbe (Katze)</h3><div class="ogt-mini-raster">' + Object.keys(FELL).map(function(f){ return dingKachel('fell:' + f, st); }).join('') + '</div></section>';
+    + '<h3 class="ogt-mini-h3">Accessoires für deinen Trainingsbegleiter</h3><div class="ogt-mini-raster">' + DEKO.map(function(d){ return dingKachel('deko:' + d.id, st); }).join('') + '</div>'
+    + (CFG.fluchen ? '<h3 class="ogt-mini-h3">Sprüche</h3><div class="ogt-mini-raster">' + dingKachel('spruch:frech', st) + '</div>' : '') + '</section>';
   if (TEST) h += '<section class="card"><p class="eyebrow">Nur im Testplan</p><p class="small muted ogt-mini-weiter">Zum Ausprobieren ohne Training. In den echten Plänen gibt es diese Knöpfe nicht.</p>'
-    + '<div class="ogt-mini-reihe"><button type="button" data-mini="test-plus">+100 ⭐</button><button type="button" data-mini="test-null">Testpunkte auf 0</button><button type="button" data-mini="test-alles">Käufe, Boni und Muckibude zurücksetzen</button></div></section>';
+    + '<div class="ogt-mini-reihe"><button type="button" data-mini="test-plus">+100 ⭐</button><button type="button" data-mini="test-null">Testpunkte auf 0</button><button type="button" data-mini="test-alles">Käufe, Namen, Boni und Muckibude zurücksetzen</button></div></section>';
   h += '<p class="ogt-mini-klein ogt-mini-fuss">Punkte, Käufe, Rekorde und Spielstände bleiben auf diesem Handy – sie werden nicht verschickt.</p>';
   platz.innerHTML = h;
 }
@@ -1392,17 +1439,73 @@ function waehlen(kennung){
   var d = ding(kennung); if (!d || !besitzt(kennung)) return;
   if (d.art === 'feier'){ ST.feier = d.id; sichern(); neuZeichnen(); feiern(d.id); return; }
   if (d.art === 'deko'){ ST.deko[d.platz] = ST.deko[d.platz] === d.id ? '' : d.id; sichern(); neuZeichnen(); return; }
-  if (d.art === 'fell'){ ST.fell = d.id; sichern(); neuZeichnen(); begleiterBild(); }
-  if (d.art === 'tier'){ ST.tier = d.id; sichern(); neuZeichnen(); begleiterBild(); }
+  if (d.art === 'fell'){ if (SLOT === 'partner') ST.partnerFell = d.id; else ST.fell = d.id; sichern(); neuZeichnen(); begleiterBild(); }
+  if (d.art === 'tier'){ if (SLOT === 'partner') ST.partner = d.id; else ST.tier = d.id; sichern(); neuZeichnen(); begleiterBild(); }
+  if (d.art === 'spruch'){ ST.frech = ST.frech === 1 ? 0 : 1; sichern(); neuZeichnen(); hinweis(ST.frech ? 'Sprüche ohne Filter: an 🤬' : 'Sprüche ohne Filter: aus'); }
+}
+// Namen geben (der erste ist gratis) und umbenennen (kostet NAME_PREIS ⭐) – Olli 22.11.2026
+function nameDialog(){
+  var t = meinTier(), alt = tierName(t), st = stand();
+  if (alt && st.konto < NAME_PREIS){ hinweis('Umbenennen kostet ' + NAME_PREIS + ' ⭐ – noch ' + zahl(NAME_PREIS - st.konto) + ' ⭐'); return; }
+  zuKauf();
+  var box = el('div', 'ogt-mini-kaufen');
+  box.innerHTML = '<form class="ogt-mini-kaufkarte" role="dialog" aria-modal="true" aria-labelledby="ogt-mini-nt"><div class="ogt-mini-bild gross">' + katzeSvg(meineKatze({ arm: 1, gesicht: 'froh' })) + '</div>'
+    + '<h2 id="ogt-mini-nt">' + (alt ? 'Neuer Name für ' + esc(alt) : 'Wie soll dein Begleiter heißen?') + '</h2>'
+    + '<input class="ogt-mini-namefeld" type="text" maxlength="14" autocomplete="off" spellcheck="false" aria-label="Name" value="' + esc(alt) + '">'
+    + '<p>' + (alt ? 'Umbenennen kostet <b>' + NAME_PREIS + ' ⭐</b>. Du hast ' + zahl(st.konto) + ' ⭐.' : 'Der erste Name ist gratis. Umbenennen kostet später ' + NAME_PREIS + ' ⭐.') + '</p>'
+    + '<div class="ogt-mini-reihe"><button type="submit" class="ogt-mini-los">' + (alt ? 'Umbenennen' : 'Speichern') + '</button><button type="button" data-mini="kauf-nein">Abbrechen</button></div></form>';
+  document.body.appendChild(box); sperren();
+  var form = box.querySelector('form'), feld = box.querySelector('input');
+  form.addEventListener('submit', function(ev){ ev.preventDefault(); nameSpeichern(feld.value); });
+  box.addEventListener('click', function(ev){ if (ev.target === box) zuKauf(); });
+  try { feld.focus({ preventScroll: true }); feld.select(); } catch (e) {}
+}
+function nameSpeichern(wert){
+  var t = meinTier(), alt = tierName(t), name = String(wert || '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 14);
+  if (!name){ hinweis('Bitte einen Namen eingeben'); return; }
+  if (name === alt){ zuKauf(); return; }
+  if (alt){
+    if (stand().konto < NAME_PREIS){ zuKauf(); hinweis('Zu wenig ⭐ zum Umbenennen'); return; }
+    ST.namensKosten = (+ST.namensKosten || 0) + NAME_PREIS;
+  }
+  ST.namen[t] = name; sichern(); zuKauf(); neuZeichnen(); begleiterBild();
+  hinweis(alt ? 'Umbenannt: ' + name + ' (−' + NAME_PREIS + ' ⭐)' : 'Hallo, ' + name + '! 👋');
 }
 
 // ===================== Begleiter im Training (Runde 3) =====================
 // Läuft unten im Bild mit, solange eine Einheit offen ist: begrüßt, nennt die nächste Übung mit dem „Achte auf“-Hinweis
 // aus dem Plan (nichts Neues erfunden), feiert jeden Satz und jede fertige Übung. Antippen geht durch ihn hindurch,
 // er blockiert nie einen Knopf. Ausschaltbar im Reiter „Spiele“.
-var BG = { el: null, bild: null, blase: null, sid: '', wander: 0, blaseZeit: 0, aktionZeit: 0, bildZeit: 0 };
+var BG = { el: null, bild: null, blase: null, sid: '', text: '', wander: 0, blaseZeit: 0, aktionZeit: 0, bildZeit: 0, gesagt: {}, letzter: '' };
 var SATZ_SPRUECHE = ['Stark!', 'Sauber!', 'Weiter so!', 'Komm, nächster Satz!', 'Auf!', 'Läuft!', 'Lass knacken!'];
+var SATZ_NAME = ['Stark, {name}!', 'Komm, {name}, nächster Satz!', '{name}, du Maschine!'];
 var UEBUNG_SPRUECHE = ['Übung geschafft! 💪', 'Abgehakt!', 'Wie ein Profi!', 'Weg damit!'];
+var UEBUNG_NAME = ['Abgehakt, {name}! 💪', 'Wie ein Profi, {name}!'];
+// Sprüche ohne Filter (Olli 22.11.2026: „weil die Athletinnen mich als eher sehr viel fluchenden Physio kennen“).
+// Ollis Beispiele – seine eigene Liste kommt noch dazu. Nur in Plänen mit MINIGAME.fluchen, gekauft und angeschaltet.
+var FRECH = ['SCHEIßE JA! – So muss das laufen!', 'Verfickt gut gemacht!', 'Scheiß Maschine!!!! Let’s GOOOO!'];
+var FRECH_NAME = ['Verfickt gut gemacht, {name}!', 'SCHEIßE JA, {name}! – So muss das laufen!'];
+var ALLES_GESCHAFFT = 'Alles geschafft – jetzt „Training speichern“! 🎉';
+function spruch(normal, mitName){
+  var name = spitzname(), pool = normal.slice();
+  if (name) pool = pool.concat(mitName);
+  if (frech()){ pool = pool.concat(FRECH, FRECH, FRECH); if (name) pool = pool.concat(FRECH_NAME); }
+  var s = pool[Math.floor(Math.random() * pool.length)];
+  if (s === BG.letzter && pool.length > 1) s = pool[(pool.indexOf(s) + 1) % pool.length];
+  BG.letzter = s;
+  return s.replace(/\{name\}/g, name);
+}
+function begruessung(){ var r = TIERE[meinTier()].ruf, n = spitzname(); return n ? 'Hey ' + n + '! ' + r : r; }
+// „Alles geschafft“ nur zweimal je Einheit (Olli 22.11.2026): wenn das Haupttraining fertig ist und noch einmal,
+// wenn auch alle Zusatzübungen durch sind – dazwischen die normalen Sprüche
+function meilenstein(sid, uebungen){
+  var g = BG.gesagt[sid] || (BG.gesagt[sid] = { haupt: false, alles: false });
+  var pflicht = uebungen.filter(function(x){ return !x.opt; });
+  var haupt = pflicht.length > 0 && pflicht.every(function(x){ return x.fertig; }), alles = uebungen.length > 0 && uebungen.every(function(x){ return x.fertig; });
+  if (alles && !g.alles){ g.alles = g.haupt = true; return 'alles'; }
+  if (haupt && !g.haupt){ g.haupt = true; return 'haupt'; }
+  return '';
+}
 function begleiterAn(){ return ST.begleiterAus !== 1; }
 function kurz(text, max){
   text = String(text || '').replace(/\s+/g, ' ').trim();
@@ -1422,10 +1525,22 @@ function begleiterBild(extra, ms){
 }
 function sagen(text, ms){
   if (!BG.el) return;
-  BG.blase.textContent = text; BG.blase.hidden = false;
+  var nm = meinName();
+  BG.text = text;
+  BG.blase.innerHTML = (nm ? '<b class="ogt-mini-bg-name">' + esc(nm) + '</b>' : '') + esc(text); BG.blase.hidden = false;
   BG.blase.classList.remove('neu'); void BG.blase.offsetWidth; BG.blase.classList.add('neu');
-  var r = BG.el.getBoundingClientRect(); BG.blase.classList.toggle('rechts', r.left + r.width / 2 > window.innerWidth / 2);
+  blaseAusrichten();
   clearTimeout(BG.blaseZeit); BG.blaseZeit = setTimeout(function(){ if (BG.blase) BG.blase.hidden = true; }, ms || 2600);
+}
+// Sprechblase immer ganz im Bild (Olli 22.11.2026: Text war beim Abhaken am Rand abgeschnitten). Läuft der Begleiter
+// gerade, bleibt er stehen; die Blase sitzt über ihm, so weit der Rand es zulässt, der Zipfel zeigt auf ihn.
+function blaseAusrichten(){
+  if (!BG.el || !BG.blase) return;
+  var r = BG.el.getBoundingClientRect(), W = window.innerWidth || document.documentElement.clientWidth || 360;
+  if (BG.el.classList.contains('laeuft')){ BG.el.style.left = Math.round(r.left) + 'px'; BG.el.classList.remove('laeuft'); r = BG.el.getBoundingClientRect(); }
+  var bw = BG.blase.offsetWidth, mitte = r.left + r.width / 2, links = begrenzt(mitte - bw / 2, 8, Math.max(8, W - 8 - bw));
+  BG.blase.style.left = Math.round(links - r.left) + 'px';
+  BG.blase.style.setProperty('--zipfel', Math.round(begrenzt(mitte - links, 18, Math.max(18, bw - 18))) + 'px');
 }
 function aktion(art, ms){
   if (!BG.el || RUHIG) return;
@@ -1456,7 +1571,9 @@ function wandern(){
 }
 function zeigeNaechste(u, erste){
   begleiterBild({ arm: 1 }, 1800);
-  sagen((erste ? 'Erste Übung: ' : 'Nächste Übung: ') + u.n + (u.cue ? '. Achte auf: ' + kurz(u.cue, 90) : ' – lass knacken!'), 5000);
+  // ganzer erster Satz des „Achte auf“-Hinweises (in den Plänen höchstens 138 Zeichen); lange Ansagen bleiben länger stehen
+  var t = (erste ? 'Erste Übung: ' : 'Nächste Übung: ') + u.n + (u.cue ? '. Achte auf: ' + kurz(u.cue, 140) : ' – lass knacken!');
+  sagen(t, Math.min(8000, 3500 + t.length * 30));
 }
 function begleiterPruefen(){
   var s = A.sitzung ? A.sitzung() : null;
@@ -1465,33 +1582,33 @@ function begleiterPruefen(){
   begleiterHin();
   if (!neu) return;
   BG.sid = s.sid; begleiterBild({ arm: 1, gesicht: 'froh' }, 2000); aktion('huepf');
-  sagen(TIERE[meinTier()].ruf, 2300);
+  sagen(begruessung(), 2600);
   setTimeout(function(){ var t = A.sitzung && A.sitzung(), u = t && naechsteUebung(t); if (u && BG.el && BG.sid === t.sid) zeigeNaechste(u, !t.uebungen.some(function(x){ return x.begonnen; })); }, 2500);
 }
 function begleiterSatz(d){
   if (!BG.el) return;
   var s = A.sitzung && A.sitzung(); if (!s) return;
   var u = d && d.x ? s.uebungen.filter(function(x){ return x.x === d.x; })[0] : null;
-  if (s.uebungen.filter(function(x){ return !x.opt; }).every(function(x){ return x.fertig; })){
-    aktion('tanz', 1700); begleiterBild({ arm: 1, gesicht: 'froh' }, 2500); sagen('Alles geschafft – jetzt „Training speichern“! 🎉', 4500); return;
+  if (meilenstein(s.sid, s.uebungen)){
+    aktion('tanz', 1700); begleiterBild({ arm: 1, gesicht: 'froh' }, 2500); sagen(ALLES_GESCHAFFT, 4500); return;
   }
+  var hauptDurch = !!(BG.gesagt[s.sid] && BG.gesagt[s.sid].haupt);
   if ((u && u.fertig) || (d && d.block != null)){
-    aktion('moonwalk', 1700); begleiterBild({ gesicht: 'froh' }, 1600); sagen(UEBUNG_SPRUECHE[Math.floor(Math.random() * UEBUNG_SPRUECHE.length)], 1700);
-    setTimeout(function(){ var t = A.sitzung && A.sitzung(), n = t && naechsteUebung(t); if (n && BG.el) zeigeNaechste(n, false); }, 1900);
+    aktion('moonwalk', 1700); begleiterBild({ gesicht: 'froh' }, 1600); sagen(spruch(UEBUNG_SPRUECHE, UEBUNG_NAME), 1700);
+    if (!hauptDurch) setTimeout(function(){ var t = A.sitzung && A.sitzung(), n = t && naechsteUebung(t); if (n && !n.opt && BG.el) zeigeNaechste(n, false); }, 1900);
     return;
   }
   aktion('huepf'); begleiterBild({ gesicht: 'froh' }, 700);
-  sagen(SATZ_SPRUECHE[Math.floor(Math.random() * SATZ_SPRUECHE.length)], 1500);
+  sagen(spruch(SATZ_SPRUECHE, SATZ_NAME), 1500);
 }
-// Am Ende der Einheit: der Begleiter und eine kleine Katze klatschen sich ab
+// Am Ende der Einheit: der Begleiter und der Abklatsch-Partner klatschen sich ab
 function begleiterFinale(){
   if (!begleiterAn() || RUHIG) return;
   var alt = document.querySelector('.ogt-mini-finale'); if (alt) alt.remove();
-  var freundFell = meinTier() === 'katze' && meinFell() === 'grau' ? 'orange' : 'grau';
   var box = el('div', 'ogt-mini-finale');
   box.setAttribute('aria-hidden', 'true');
   box.innerHTML = '<div class="ogt-mini-fin-a">' + katzeSvg(meineKatze({ arm: 1, gesicht: 'froh' })) + '</div>'
-    + '<div class="ogt-mini-fin-b">' + katzeSvg({ tier: 'katze', fell: freundFell, arm: -1, gesicht: 'froh' }) + '</div><div class="ogt-mini-fin-text">Patsch! 🙌</div>';
+    + '<div class="ogt-mini-fin-b">' + katzeSvg(partnerBild({ arm: -1, gesicht: 'froh' })) + '</div><div class="ogt-mini-fin-text">Patsch! 🙌</div>';
   document.body.appendChild(box);
   requestAnimationFrame(function(){ requestAnimationFrame(function(){ box.classList.add('da'); }); });
   setTimeout(function(){ box.classList.add('patsch'); var r = box.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height * 0.45); }, 1050);
@@ -1551,17 +1668,20 @@ document.addEventListener('click', function(ev){
       var d = ding(k);
       if (kaufen(k)){
         zuKauf(); burst(window.innerWidth / 2, window.innerHeight * 0.45); neuZeichnen();
-        hinweis('Gekauft: ' + d.n + (d.art === 'spiel' ? ' – viel Spaß!' : (d.art === 'deko' ? ' – ist jetzt an' : (d.art === 'tier' ? ' – ist jetzt dein Begleiter' : ' – ist jetzt aktiv'))));
+        hinweis('Gekauft: ' + d.n + (d.art === 'spiel' ? ' – viel Spaß!' : (d.art === 'deko' ? ' – ist jetzt an' : (d.art === 'tier' ? (SLOT === 'partner' ? ' – kommt jetzt zum Abklatschen' : ' – ist jetzt dein Begleiter') : (d.art === 'spruch' ? ' – ist jetzt an 🤬' : ' – ist jetzt aktiv')))));
         begleiterBild();
         if (d.art === 'feier') setTimeout(function(){ feiern(d.id); }, 300);
       } else { zuKauf(); hinweis('Das hat nicht geklappt – zu wenig Punkte?'); }
       break;
     case 'waehlen': waehlen(k); break;
+    case 'name': nameDialog(); break;
+    case 'slot': SLOT = id === 'partner' ? 'partner' : 'haupt'; tabFuellen(); break;
     case 'begleiter-umschalten': ST.begleiterAus = begleiterAn() ? 1 : 0; sichern(); neuZeichnen(); hinweis(begleiterAn() ? 'Dein Begleiter läuft im Training mit' : 'Begleiter im Training ausgeblendet'); break;
     case 'test-plus': if (TEST){ ST.bonus = (+ST.bonus || 0) + 100; ST.letzte = stand().verdient; sichern(); neuZeichnen(); hinweis('+100 Testpunkte'); } break;
     case 'test-null': if (TEST){ ST.bonus = 0; ST.letzte = stand().verdient; sichern(); neuZeichnen(); hinweis('Testpunkte auf 0'); } break;
     case 'test-alles':
       if (TEST){ ST.gekauft = {}; ST.feier = 'konfetti'; ST.deko = { kopf: '', augen: '', hals: '' }; ST.fell = 'orange'; ST.tier = 'katze'; ST.entdeckt = {}; ST.mucki = null;
+        ST.partner = 'katze'; ST.partnerFell = ''; ST.namen = {}; ST.namensKosten = 0; ST.frech = 0; SLOT = 'haupt';
         ST.letzte = stand().verdient; sichern(); neuZeichnen(); hinweis('Käufe, Boni und Muckibude zurückgesetzt'); }
       break;
   }
@@ -1580,10 +1700,9 @@ var CSS = [
   '.ogt-mini-bg{position:fixed;bottom:calc(74px + env(safe-area-inset-bottom,0px));left:12px;z-index:42;width:88px;height:88px;transition:left 1.8s ease-in-out;pointer-events:none}',
   '.ogt-mini-bg-tier{width:100%;height:100%}',
   '.ogt-mini-bg-tier svg{width:100%;height:100%;display:block;filter:drop-shadow(0 4px 8px rgba(0,0,0,.25))}',
-  '.ogt-mini-bg-blase{position:absolute;bottom:94px;left:0;width:max-content;max-width:min(260px,calc(100vw - 40px));background:#fff;color:#1b1b1b;font:700 14px/1.3 var(--font-body,system-ui,sans-serif);padding:8px 11px;border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.25)}',
-  ".ogt-mini-bg-blase::after{content:'';position:absolute;left:32px;bottom:-7px;border:7px solid transparent;border-top-color:#fff;border-bottom:0}",
-  '.ogt-mini-bg-blase.rechts{left:auto;right:0}',
-  '.ogt-mini-bg-blase.rechts::after{left:auto;right:32px}',
+  '.ogt-mini-bg-blase{position:absolute;bottom:94px;left:0;width:max-content;max-width:min(280px,calc(100vw - 16px));box-sizing:border-box;background:#fff;color:#1b1b1b;font:700 14px/1.3 var(--font-body,system-ui,sans-serif);padding:8px 11px;border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.25);overflow-wrap:anywhere}',
+  '.ogt-mini-bg-name{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#7c3aed;margin-bottom:1px}',
+  ".ogt-mini-bg-blase::after{content:'';position:absolute;left:calc(var(--zipfel,32px) - 7px);bottom:-7px;border:7px solid transparent;border-top-color:#fff;border-bottom:0}",
   '.ogt-mini-bg-blase.neu{animation:ogtMiniBlase2 .25s ease}',
   '@keyframes ogtMiniBlase2{from{opacity:0;transform:translateY(6px) scale(.92)}to{opacity:1;transform:none}}',
   '.ogt-mini-bg.laeuft .ogt-mini-bg-tier{animation:ogtMiniLauf .3s ease-in-out infinite alternate}',
@@ -1658,6 +1777,14 @@ var CSS = [
   '.ogt-mini-ding.geht .ogt-mini-ab{color:#d97706;font-weight:800}',
   '.ogt-mini-ding.aktiv .ogt-mini-ab{color:var(--accent);font-weight:700}',
   '.ogt-mini-reihe{display:flex;gap:10px;flex-wrap:wrap}',
+  '.ogt-mini-reihe .ogt-mini-los{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}',
+  '.ogt-mini-tiername{font-size:12px;font-weight:700;color:var(--ink-2);line-height:1.1}',
+  '.ogt-mini-slots{display:flex;gap:8px;margin:8px 0 2px}',
+  '.ogt-mini-slots button{flex:1;font:inherit;font-weight:700;font-size:14px;padding:9px 8px;border-radius:12px;border:2px solid var(--line);background:var(--panel);color:var(--ink-2);cursor:pointer}',
+  '.ogt-mini-slots button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}',
+  '.ogt-mini-bgname{margin:4px 0 0;font-size:20px;font-family:var(--font-display)}',
+  '.ogt-mini-bgname span{font-size:15px;color:var(--ink-3);font-family:var(--font-body)}',
+  '.ogt-mini-namefeld{width:100%;box-sizing:border-box;font:inherit;font-size:18px;font-weight:700;padding:10px 12px;border-radius:12px;border:2px solid var(--line);background:var(--panel-2);color:var(--ink);text-align:center;margin:6px 0 2px}',
   '.ogt-mini-kaufen{position:fixed;inset:0;z-index:68;background:rgba(8,12,20,.6);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}',
   '.ogt-mini-kaufkarte{width:min(92vw,340px);background:var(--panel);color:var(--ink);border-radius:18px;padding:18px;text-align:center;box-shadow:0 14px 40px rgba(0,0,0,.35);font-family:var(--font-body)}',
   '.ogt-mini-kaufkarte h2{font-family:var(--font-display);font-size:28px;margin:6px 0}',
@@ -1728,6 +1855,8 @@ var CSS = [
 // Für die automatischen Prüfungen (tests/tests_minigame.html): Blick auf Stand, Shop und Feiern von außen
 A.pruefen = { stand: stand, kaufen: kaufen, besitzt: besitzt, feiern: feiern, spielStarten: spielStarten, katzeSvg: katzeSvg,
   effekt: function(id, W, H){ return EFFEKT[id] ? EFFEKT[id](W, H) : null; }, ST: function(){ return JSON.parse(JSON.stringify(ST)); },
-  begleiter: function(){ return { da: !!BG.el, text: BG.blase && !BG.blase.hidden ? BG.blase.textContent : '', tier: meinTier() }; }, finale: begleiterFinale,
-  tiere: function(){ return Object.keys(TIERE); }, tierBild: function(o){ return katzeSvg(o); } };
+  begleiter: function(){ return { da: !!BG.el, text: BG.blase && !BG.blase.hidden ? BG.text : '', tier: meinTier(), name: meinName() }; }, finale: begleiterFinale,
+  tiere: function(){ return Object.keys(TIERE); }, tierBild: function(o){ return katzeSvg(o); },
+  spruch: function(){ return spruch(SATZ_SPRUECHE, SATZ_NAME); }, gruss: begruessung, meilenstein: meilenstein, frech: FRECH.slice(),
+  partner: function(){ return { tier: meinPartner(), fell: partnerFell() }; }, slot: function(){ return SLOT; } };
 })();
