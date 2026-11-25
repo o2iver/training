@@ -1,4 +1,4 @@
-/*! O.G. Trainings-App · Grundgerüst · Version f6cfe0d535
+/*! O.G. Trainings-App · Grundgerüst · Version 6633bf7d38
  * Abgeleitet aus dem claude.ai-Artefakt „Training Olli“ (Stand 27.10.2026, siehe quelle/).
  * Kennung und Schlüssel des persönlichen Plans stehen im Link hinter „#“ – dieser Teil geht
  * nie an einen Server. Der Plan liegt verschlüsselt unter plan-<kennung>.json und wird erst hier
@@ -174,7 +174,7 @@ function rmStart(id, C){
 function rmWohin(self, ther){ return self ? 'in deine Übersicht' : 'an ' + ther; }
 function rmBanner(self, ther){
   if (COACH) return 'Coach-Ansicht: ' + (COACH_ANGEKOMMEN != null ? 'Hier siehst du den Plan so, wie die Athletin ihn sieht, mit allen Einträgen, die bisher angekommen sind'
-    : (self ? 'Hier siehst du deinen Plan' : 'Hier siehst du den Plan nur mit dem Stand vom Umstieg, neue Einheiten stehen in der Übersicht')) + ' – nur zum Ansehen, nichts wird gespeichert oder gesendet.';
+    : (self ? 'Hier siehst du deinen Plan' : 'Hier siehst du den Plan mit dem Stand vom letzten Hochladen, neuere Einheiten stehen in der Übersicht')) + ' – nur zum Ansehen, nichts wird gespeichert oder gesendet.';
   if (!RM) return 'Deine Einträge bleiben auf diesem Gerät' + (self ? '.' : ' – schick sie mit „Per WhatsApp schicken“ an ' + ther + '.');
   return 'Deine Einträge bleiben auf diesem Gerät und gehen nach jeder Einheit verschlüsselt ' + rmWohin(self, ther) + '.';
 }
@@ -268,6 +268,18 @@ function coachEintraegeDazu(C, id){
   var p = null;
   try { p = JSON.parse(sessionStorage.getItem(COACH_DATEN) || 'null'); } catch (e) {}
   if (!p || p.i !== id) return;
+  COACH_ANGEKOMMEN = inDenStand(C, p);
+}
+// Nur für die Prüfungen (?ogt-test=1): mit ogt-leer=1 ohne die Einträge aus dem Plan (die Prüfungen arbeiten mit erfundenen
+// Einträgen); mit dem Sitzungsspeicher ogt:test-stand so, als hätte werkzeuge/stand_uebernehmen.py sie schon in den Plan gelegt
+function testStand(C, id){
+  if (/[?&]ogt-leer=1(&|$)/.test(location.search) && C.stand){ C.stand.log = {}; C.stand.tests = []; C.stand.hb = []; }
+  var p = null;
+  try { p = JSON.parse(sessionStorage.getItem('ogt:test-stand') || 'null'); } catch (e) {}
+  if (p && p.i === id) inDenStand(C, p);
+}
+// Einträge in den Plan-Stand legen – je Eintrag gilt die neuere Fassung (wie werkzeuge/stand_uebernehmen.py)
+function inDenStand(C, p){
   var st = C.stand = C.stand || {}, n = 0;
   if (!st.log || typeof st.log !== 'object') st.log = {};
   if (!Array.isArray(st.tests)) st.tests = [];
@@ -288,7 +300,7 @@ function coachEintraegeDazu(C, id){
     if (i < 0) st.hb.push(x);
     else if ((+x.t || 0) >= (+st.hb[i].t || 0)) st.hb[i] = x;
   });
-  COACH_ANGEKOMMEN = n;
+  return n;
 }
 
 function starten(){
@@ -301,6 +313,7 @@ function starten(){
     document.title = (COACH ? 'Ansicht · ' : '') + (C.inhalt.TITLE || 'Training') + ' · O.G. Physiotherapie';
     if (!RM || C.rueckmeldung === false || COACH) RM = null;
     if (COACH) coachEintraegeDazu(C, p.id);
+    else if (RM_TEST) testStand(C, p.id);
     run(C);
     rmStart(p.id, C);
     if (COACH){ var c = document.createElement('div'); c.className = 'ogt-coach'; c.textContent = 'Coach-Ansicht · nur ansehen'; document.body.appendChild(c); }
@@ -3062,7 +3075,7 @@ function miniStart(){
   if (!miniAn() || window.OGT_MINI) return;
   window.OGT_MINI = { cfg: MINIGAME, id: S.id, titel: TITLE, self: !!SELF, heute: todayISO, einheiten: miniEinheiten, wochen: miniWochen, toast: toast,
     spiele: miniSpiele, hat: { hb: !!HB_FRAGE }, ther: therShort() || 'deinen Coach', sitzung: miniSitzung };
-  var sc = document.createElement('script'); sc.src = 'spiele.js?v=f6cfe0d535'; sc.async = true;
+  var sc = document.createElement('script'); sc.src = 'spiele.js?v=6633bf7d38'; sc.async = true;
   document.body.appendChild(sc);
 }
 
